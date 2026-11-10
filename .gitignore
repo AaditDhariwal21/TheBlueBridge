@@ -1,0 +1,12 @@
+node_modules
+dist
+coverage
+*.local
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+
+# Server secrets. client/.env is intentionally committed: public build config only.
+server/.env
+.env.local
+.env.*.local

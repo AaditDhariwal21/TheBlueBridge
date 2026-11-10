@@ -1,0 +1,6 @@
+**/dist
+**/node_modules
+package-lock.json
+client/src/assets/images
+docs/reference
+docs/screenshots

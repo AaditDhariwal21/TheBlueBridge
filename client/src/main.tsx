@@ -1,0 +1,18 @@
+import '@fontsource/playfair-display/400.css';
+import '@fontsource/playfair-display/400-italic.css';
+import '@fontsource-variable/inter/wght.css';
+import './styles/index.css';
+
+import { StrictMode } from 'react';
+import { createRoot } from 'react-dom/client';
+
+import { App } from './app/App';
+
+const root = document.getElementById('root');
+if (!root) throw new Error('Missing #root element in index.html');
+
+createRoot(root).render(
+  <StrictMode>
+    <App />
+  </StrictMode>,
+);

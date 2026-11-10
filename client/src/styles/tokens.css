@@ -1,0 +1,213 @@
+/*
+ * Design tokens: The Blue Bridge.
+ * Source of truth: docs/design-tokens.md. Keep the two in sync.
+ *
+ * Layer 1, palette: raw values. Components must never reference these.
+ * Layer 2, semantic: `@theme` tokens. These are the only names exposed as
+ *          Tailwind utilities (bg-bg, text-text-muted, border-border, ...).
+ * Tones:   `data-tone="inverse"` re-points semantic tokens for navy bands.
+ *          A future dark mode is one more scope that re-points the same names.
+ */
+
+/* ---------------------------------------------------------------- palette */
+:root {
+  --palette-navy-950: #001a56;
+  --palette-navy-900: #0e1d42;
+  --palette-ink: #16213e;
+  --palette-slate: #5b6478;
+  --palette-paper: #f6f3ec;
+  --palette-white: #ffffff;
+  --palette-hairline: #ddd6c9;
+  --palette-blue-400: #7fa9ef;
+  --palette-blue-600: #3563c4;
+  --palette-pink-400: #e393c2;
+  --palette-pink-600: #a23c76;
+  --palette-red-200: #ffb4a8;
+  --palette-red-700: #b42318;
+  --palette-green-200: #9fe0bf;
+  --palette-green-700: #1e6b4a;
+
+  /* Motion (no Tailwind namespace; consumed by CSS below and in index.css). */
+  --duration-fast: 150ms;
+  --duration-base: 250ms;
+  --duration-reveal: 700ms;
+}
+
+/* --------------------------------------------------------------- semantic */
+@theme {
+  /* Remove Tailwind's default scales so only our tokens exist as utilities. */
+  --color-*: initial;
+  --font-*: initial;
+  --text-*: initial;
+  --radius-*: initial;
+  --shadow-*: initial;
+  --inset-shadow-*: initial;
+  --drop-shadow-*: initial;
+  --text-shadow-*: initial;
+  --container-*: initial;
+  --tracking-*: initial;
+  --ease-*: initial;
+  --animate-*: initial;
+  --aspect-*: initial;
+
+  /* Colour roles (default tone: paper) */
+  --color-bg: var(--palette-paper);
+  --color-surface: var(--palette-white);
+  --color-primary: var(--palette-navy-950);
+  --color-on-primary: var(--palette-paper);
+  --color-accent: var(--palette-blue-600);
+  --color-accent-2: var(--palette-pink-600);
+  --color-accent-soft: var(--palette-blue-400);
+  --color-accent-2-soft: var(--palette-pink-400);
+  --color-text: var(--palette-ink);
+  --color-text-muted: var(--palette-slate);
+  --color-text-subtle: var(--palette-slate);
+  --color-border: var(--palette-hairline);
+  --color-border-strong: var(--palette-slate);
+  --color-focus: var(--palette-blue-600);
+  --color-danger: var(--palette-red-700);
+  --color-success: var(--palette-green-700);
+  --color-transparent: transparent;
+  --color-current: currentColor;
+
+  /* Typography */
+  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Playfair Display', Georgia, 'Times New Roman', serif;
+
+  --text-xs: 0.75rem;
+  --text-xs--line-height: 1.333;
+  --text-sm: 0.875rem;
+  --text-sm--line-height: 1.43;
+  --text-base: 1rem;
+  --text-base--line-height: 1.5;
+  --text-lg: 1.125rem;
+  --text-lg--line-height: 1.625;
+  --text-body-lg: clamp(1.125rem, 1rem + 0.45vw, 1.3125rem);
+  --text-body-lg--line-height: 1.6;
+  --text-h3: 1.25rem;
+  --text-h3--line-height: 1.4;
+  /* Feed card and query-topic titles: between h3 and lead. */
+  --text-title: clamp(1.1875rem, 1.1rem + 0.4vw, 1.4375rem);
+  --text-title--line-height: 1.3;
+  --text-wordmark: 1.25rem;
+  --text-wordmark--line-height: 1.4;
+  --text-wordmark--letter-spacing: 0.025em;
+  --text-lead: clamp(1.5rem, 1.25rem + 0.9vw, 1.875rem);
+  --text-lead--line-height: 1.375;
+  --text-tagline: clamp(1.5rem, 1.2rem + 1.2vw, 2rem);
+  --text-tagline--line-height: 1.25;
+  --text-h2: clamp(1.875rem, 1.5rem + 1.2vw, 2.5rem);
+  --text-h2--line-height: 1.2;
+  --text-h1: clamp(1.875rem, 1.35rem + 2vw, 3rem);
+  --text-h1--line-height: 1.15;
+  --text-display: clamp(2.25rem, 1.4rem + 3.4vw, 4rem);
+  --text-display--line-height: 1.1;
+  --text-numeral: clamp(3rem, 2.2rem + 3vw, 4.5rem);
+  --text-numeral--line-height: 1;
+
+  --tracking-tight: -0.01em;
+  --tracking-wordmark: 0.025em;
+  --tracking-caps: 0.2em;
+
+  /* Layout */
+  --container-page: 72rem;
+  --container-reading: 42rem;
+  --container-narrow: 34rem;
+  --container-hero: 110rem; /* the hero image's natural width (1758px) */
+  --spacing-gutter: 1.5rem;
+  --spacing-header: 4.25rem;
+  --spacing-section: clamp(4rem, 2.75rem + 4.5vw, 7rem);
+
+  --aspect-hero: 1758 / 878; /* hero-bridge native ratio */
+  --aspect-hero-crop: 8 / 5; /* mobile crop: trims ~10% each side to enlarge the lockup */
+  --aspect-figures: 2 / 1;
+
+  /* Shape: the brand is square-cornered with no drop shadows. */
+  --radius-none: 0;
+  --radius-full: 9999px;
+
+  /* Motion */
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --default-transition-duration: var(--duration-fast);
+  --default-transition-timing-function: var(--ease-standard);
+
+  --animate-rise: rise var(--duration-reveal) var(--ease-out) both;
+  --animate-fade: fade calc(var(--duration-reveal) * 1.6) var(--ease-out) both;
+  --animate-twinkle: twinkle 4s ease-in-out infinite;
+  /* Something the user just posted: rises in, with a soft blue wash that fades. */
+  --animate-arrive: arrive 1.6s var(--ease-out) backwards;
+  /* Loading placeholders. Reduced motion stops it (see index.css). */
+  --animate-shimmer: shimmer 1.4s ease-in-out infinite;
+  --animate-sheet: sheet var(--duration-base) var(--ease-out) both;
+
+  @keyframes rise {
+    from {
+      opacity: 0;
+      translate: 0 1rem;
+    }
+  }
+  @keyframes fade {
+    from {
+      opacity: 0;
+      scale: 1.015;
+    }
+  }
+  @keyframes twinkle {
+    0%,
+    100% {
+      opacity: 0.35;
+    }
+    50% {
+      opacity: 1;
+    }
+  }
+  @keyframes arrive {
+    0% {
+      opacity: 0;
+      translate: 0 0.5rem;
+      background-color: color-mix(in srgb, var(--color-accent-soft) 22%, transparent);
+    }
+    /* No 100% frame: it eases back to the element's own background. */
+    25% {
+      opacity: 1;
+      translate: 0 0;
+      background-color: color-mix(in srgb, var(--color-accent-soft) 22%, transparent);
+    }
+  }
+  @keyframes shimmer {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.45;
+    }
+  }
+  @keyframes sheet {
+    from {
+      opacity: 0;
+      translate: 0 1.5rem;
+    }
+  }
+}
+
+/* ------------------------------------------------------------------ tones */
+[data-tone='inverse'] {
+  color-scheme: dark;
+  --color-bg: var(--palette-navy-950);
+  --color-surface: var(--palette-navy-900);
+  --color-primary: var(--palette-paper);
+  --color-on-primary: var(--palette-navy-950);
+  --color-accent: var(--palette-blue-400);
+  --color-accent-2: var(--palette-pink-400);
+  --color-text: var(--palette-paper);
+  /* Opaque mixes so contrast is exact: 8.7:1, 6.8:1 and 5.2:1 on navy-950. */
+  --color-text-muted: color-mix(in srgb, var(--palette-paper) 75%, var(--palette-navy-950));
+  --color-text-subtle: color-mix(in srgb, var(--palette-paper) 65%, var(--palette-navy-950));
+  --color-border: color-mix(in srgb, var(--palette-paper) 18%, var(--palette-navy-950));
+  --color-border-strong: color-mix(in srgb, var(--palette-paper) 55%, var(--palette-navy-950));
+  --color-focus: var(--palette-blue-400);
+  --color-danger: var(--palette-red-200);
+  --color-success: var(--palette-green-200);
+}
