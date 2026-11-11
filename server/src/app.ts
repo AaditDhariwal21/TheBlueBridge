@@ -1,42 +1,77 @@
-import type { IncomingMessage, ServerResponse } from 'node:http';
+import cors from 'cors';
+import express, { Router, type Express } from 'express';
+import helmet from 'helmet';
+import type { Logger } from 'pino';
 
-import { sendError, type Handler } from './http.ts';
-import { health } from './routes/health.ts';
+import type { ServerConfig } from './config/env.ts';
+import type { Db } from './db/schema.ts';
+import { authRoutes } from './features/auth/auth.routes.ts';
+import { blogsRoutes } from './features/blogs/blogs.routes.ts';
+import { categoriesRoutes } from './features/categories/categories.routes.ts';
+import { commentsRoutes } from './features/comments/comments.routes.ts';
+import { healthRoutes } from './features/health/health.routes.ts';
+import { referralsRoutes } from './features/referrals/referrals.routes.ts';
+import { usersRoutes } from './features/users/users.routes.ts';
+import type { AccessTokenVerifier } from './lib/accessToken.ts';
+import type { IdentityProvider } from './lib/identity.ts';
+import { requireAuth } from './middleware/authenticate.ts';
+import { errorHandler, notFound } from './middleware/errorHandler.ts';
+import { apiRateLimit, writeRateLimit } from './middleware/rateLimits.ts';
+import { requestContext } from './middleware/requestContext.ts';
 
-/** Route table: path → method → handler. Add new endpoints here. */
-const ROUTES: Record<string, Partial<Record<string, Handler>>> = {
-  '/api/health': { GET: health },
-};
+/** Everything the app needs from the outside, injected so tests can swap any of it. */
+export interface AppDeps extends Pick<ServerConfig, 'trustProxy' | 'corsOrigins'> {
+  logger: Logger;
+  db: Db;
+  identity: IdentityProvider;
+  verifyAccessToken: AccessTokenVerifier;
+}
 
-/** Top-level request handler: routing, 404/405 and a last-resort 500. */
-export async function app(req: IncomingMessage, res: ServerResponse): Promise<void> {
-  const started = performance.now();
-  res.on('finish', () => {
-    const ms = (performance.now() - started).toFixed(1);
-    console.log(`${req.method ?? '?'} ${req.url ?? ''} ${res.statusCode} ${ms}ms`);
+const BODY_LIMIT = '16kb';
+/** A formatted blog is bigger than anything else (up to ~100 kB of document JSON). */
+const BLOG_BODY_LIMIT = '256kb';
+
+export function createApp(deps: AppDeps): Express {
+  const app = express();
+  app.set('trust proxy', deps.trustProxy);
+
+  app.use(requestContext(deps.logger));
+  app.use(helmet());
+  // Bearer tokens, not cookies, so no credentials mode. Unknown origins get no CORS headers.
+  app.use(
+    cors({
+      origin: deps.corsOrigins,
+      methods: ['GET', 'POST', 'DELETE'],
+      allowedHeaders: ['Authorization', 'Content-Type'],
+      maxAge: 600,
+    }),
+  );
+  // Parsed once: the blog route's larger limit runs first, the general parser then skips.
+  app.post('/api/blogs', express.json({ limit: BLOG_BODY_LIMIT }));
+  app.use(express.json({ limit: BODY_LIMIT }));
+
+  app.use('/api', apiRouter(deps));
+  app.use(notFound);
+  app.use(errorHandler);
+  return app;
+}
+
+/** The route table. Every path below is served under /api. */
+function apiRouter(deps: AppDeps): Router {
+  const withAuth = { ...deps, requireAuth: requireAuth(deps), limitWrites: writeRateLimit() };
+  const router = Router();
+  router.use((_req, res, next) => {
+    res.set('Cache-Control', 'no-store'); // responses carry personal data
+    next();
   });
+  router.use(apiRateLimit());
 
-  try {
-    // Parse against a fixed base; never trust the Host header for routing.
-    const { pathname } = new URL(req.url ?? '/', 'http://localhost');
-    const methods = ROUTES[pathname];
-    if (!methods) {
-      sendError(res, 404, 'Not found');
-      return;
-    }
-
-    const handler = methods[req.method ?? ''];
-    if (!handler) {
-      res.setHeader('Allow', Object.keys(methods).join(', '));
-      sendError(res, 405, 'Method not allowed');
-      return;
-    }
-
-    await handler(req, res);
-  } catch (error) {
-    // Log details server-side only; never leak internals to clients.
-    console.error(error);
-    if (!res.headersSent) sendError(res, 500, 'Internal server error');
-    else res.end();
-  }
+  router.use(healthRoutes()); //                     GET  /health
+  router.use(categoriesRoutes(deps)); //             GET  /categories
+  router.use('/auth', authRoutes(deps)); //          POST /auth/signup, /auth/referral-codes/validate
+  router.use(usersRoutes(withAuth)); //              GET  /me, /users/:id
+  router.use(referralsRoutes(withAuth)); //          GET  /me/referrals
+  router.use(blogsRoutes(withAuth)); //              /blogs[/:id], /query-blogs[/:id], /me/blogs
+  router.use(commentsRoutes(withAuth)); //           /blogs/:id/comments[/:commentId], /me/comments
+  return router;
 }

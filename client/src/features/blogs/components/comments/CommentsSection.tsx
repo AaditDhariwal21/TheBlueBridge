@@ -2,6 +2,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 
 import { Button } from '../../../../components/ui/Button';
+import {
+  canComment,
+  canModerate,
+  canPostQuery,
+  canReplyUnderQuery,
+} from '../../../auth/permissions';
 import { scrollIntoViewGently } from '../../../../lib/motion';
 import { MEDIA, useMediaQuery } from '../../../../lib/useMediaQuery';
 import { buildCommentTree } from '../../lib/commentTree';
@@ -9,9 +15,11 @@ import { THREAD_PARAM } from '../../lib/paths';
 import { plural } from '../../lib/text';
 import type { CommentSubject } from '../../model/types';
 import { useThread } from '../../state/hooks';
+import { useBlogActor } from '../../state/viewer';
 import { ArrowLeftIcon } from '../shared/Icons';
-import { Skeleton } from '../shared/Skeleton';
-import { StateMessage } from '../shared/StateMessage';
+import { JoinPrompt } from '../shared/JoinPrompt';
+import { Skeleton } from '../../../../components/ui/Skeleton';
+import { StateMessage } from '../../../../components/ui/StateMessage';
 import { CommentComposer } from './CommentComposer';
 import { CommentItem } from './CommentItem';
 import { commentDomId, ThreadUiContext, type ThreadCopy, type ThreadUi } from './threadContext';
@@ -21,6 +29,8 @@ interface CommentsSectionProps {
   copy: ThreadCopy;
   /** The blog's author, tagged "Author" in the thread. Null on Query Blogs. */
   authorId: string | null;
+  /** The blog's categories: they decide who moderates, and on a Query Blog who answers. */
+  categoryIds: readonly string[];
 }
 
 const toggled = (set: ReadonlySet<string>, id: string, on: boolean): ReadonlySet<string> => {
@@ -39,9 +49,14 @@ const ZERO_WIDTH_SPACE = String.fromCharCode(0x200b);
  * the focused "continue thread" view when `?thread=<commentId>` is present,
  * which re-roots the conversation at that comment with fresh indentation.
  */
-export function CommentsSection({ subject, copy, authorId }: CommentsSectionProps) {
-  const { comments, status, retry, post } = useThread(subject);
+export function CommentsSection({ subject, copy, authorId, categoryIds }: CommentsSectionProps) {
+  const { comments, status, retry, post, remove } = useThread(subject);
   const tree = useMemo(() => buildCommentTree(comments), [comments]);
+  const actor = useBlogActor();
+  const isQueryBlog = subject.kind === 'query';
+  const canPostTopLevel = isQueryBlog ? canPostQuery(actor) : canComment(actor);
+  const canRemove = canModerate(actor, categoryIds);
+  const [queryCategoryId] = categoryIds;
   const maxDepth = useMediaQuery(MEDIA.sm) ? 3 : 2;
 
   const [collapsed, setCollapsed] = useState(EMPTY);
@@ -106,6 +121,23 @@ export function CommentsSection({ subject, copy, authorId }: CommentsSectionProp
     }
   }, [focusId]);
 
+  // On a discussion blog any approved member may reply. Under a query (at any
+  // depth) the rule depends on who asked it, so walk up to the query itself.
+  const canReply = useCallback(
+    (commentId: string) => {
+      if (tree.byId.get(commentId)?.comment.removed !== false) return false;
+      if (!isQueryBlog) return canComment(actor);
+      let node = tree.byId.get(commentId);
+      while (node?.comment.parentId) node = tree.byId.get(node.comment.parentId);
+      if (!node || queryCategoryId === undefined) return false;
+      return canReplyUnderQuery(actor, {
+        authorId: node.comment.author.id,
+        categoryId: queryCategoryId,
+      });
+    },
+    [isQueryBlog, actor, tree.byId, queryCategoryId],
+  );
+
   const ui = useMemo<ThreadUi>(
     () => ({
       copy,
@@ -122,6 +154,9 @@ export function CommentsSection({ subject, copy, authorId }: CommentsSectionProp
       },
       fresh,
       replyingTo,
+      canReply,
+      canRemove,
+      removeComment: remove,
       openReply: setReplyingTo,
       closeReply: () => {
         setReplyingTo(null);
@@ -129,7 +164,20 @@ export function CommentsSection({ subject, copy, authorId }: CommentsSectionProp
       postReply,
       continueTo: (id) => ({ search: `?${THREAD_PARAM}=${encodeURIComponent(id)}` }),
     }),
-    [copy, maxDepth, authorId, tree.byId, collapsed, expanded, fresh, replyingTo, postReply],
+    [
+      copy,
+      maxDepth,
+      authorId,
+      tree.byId,
+      collapsed,
+      expanded,
+      fresh,
+      replyingTo,
+      canReply,
+      canRemove,
+      remove,
+      postReply,
+    ],
   );
 
   const [one, many] = copy.entryNoun;
@@ -228,12 +276,22 @@ export function CommentsSection({ subject, copy, authorId }: CommentsSectionProp
 
         {!focusId && (
           <div className="mt-5 mb-8">
-            <CommentComposer
-              label={copy.composerLabel}
-              placeholder={copy.composerPlaceholder}
-              submitLabel={copy.composerSubmit}
-              onSubmit={postTopLevel}
-            />
+            {isQueryBlog && (
+              <p className="mb-3 text-xs text-text-muted">
+                Any approved member can ask. Ambassadors for this topic answer, and whoever asked
+                can reply under their own query.
+              </p>
+            )}
+            {canPostTopLevel ? (
+              <CommentComposer
+                label={copy.composerLabel}
+                placeholder={copy.composerPlaceholder}
+                submitLabel={copy.composerSubmit}
+                onSubmit={postTopLevel}
+              />
+            ) : (
+              <JoinPrompt action={isQueryBlog ? 'ask a query' : 'comment'} />
+            )}
           </div>
         )}
         {focusId && <div className="mt-5" />}

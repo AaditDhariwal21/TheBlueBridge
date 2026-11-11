@@ -1,0 +1,18 @@
+# Disposable Postgres for the integration tests: `npm run test:db:up -w server`.
+# Data lives in tmpfs, so `test:db:down` (or a restart) throws everything away.
+# Each test file creates and drops its own database inside this server.
+name: blue-bridge-test
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - '127.0.0.1:54329:5432'
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 1s
+      timeout: 3s
+      retries: 30

@@ -70,8 +70,20 @@ export default tseslint.config(
 
   // ---------------------------------------------------------------- server
   {
-    files: ['server/src/**/*.ts'],
+    files: ['server/{src,test}/**/*.ts'],
     ...typescript,
     languageOptions: { ...typescript.languageOptions, globals: globals.node },
+    rules: {
+      ...typescript.rules,
+      // node:test's describe/it return promises the runner itself awaits.
+      '@typescript-eslint/no-floating-promises': [
+        'error',
+        {
+          allowForKnownSafeCalls: [
+            { from: 'package', package: 'node:test', name: ['describe', 'it', 'test'] },
+          ],
+        },
+      ],
+    },
   },
 );

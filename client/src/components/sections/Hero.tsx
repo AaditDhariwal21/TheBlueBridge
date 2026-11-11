@@ -1,8 +1,10 @@
-import { PLACEHOLDER_HREF } from '../../app/site';
+import { Link } from 'react-router';
+
 import { HERO_BRIDGE } from '../../assets/images';
+import { AUTH_PATHS } from '../../features/auth/paths';
 import { Container } from '../layout/Container';
 import { Section } from '../layout/Section';
-import { ButtonLink } from '../ui/Button';
+import { buttonClasses } from '../ui/buttonClasses';
 import { Picture } from '../ui/Picture';
 
 const TAGLINE = 'A global community of professional women from Jodhpur.';
@@ -35,9 +37,9 @@ export function Hero() {
           {TAGLINE}
         </h1>
         <div className="mt-8 motion-safe:animate-rise" style={{ animationDelay: '350ms' }}>
-          <ButtonLink href={PLACEHOLDER_HREF.createAccount} size="lg">
+          <Link to={AUTH_PATHS.signUp} className={buttonClasses({ size: 'lg' })}>
             Create your account
-          </ButtonLink>
+          </Link>
         </div>
       </Container>
     </Section>

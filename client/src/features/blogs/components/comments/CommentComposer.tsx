@@ -1,10 +1,10 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent, type SubmitEvent } from 'react';
 
-import { CURRENT_USER } from '../../../../app/currentUser';
 import { Button } from '../../../../components/ui/Button';
 import { Textarea } from '../../../../components/ui/Textarea';
 import { cn } from '../../../../lib/cn';
 import { COMMENT_MAX, normaliseText } from '../../model/validation';
+import { useViewerAuthor } from '../../state/viewer';
 import { Avatar } from '../shared/Avatar';
 import { CharacterCount } from '../shared/CharacterCount';
 
@@ -25,7 +25,8 @@ interface CommentComposerProps {
 }
 
 /**
- * Text box for a new comment, query or reply, as the session user.
+ * Text box for a new comment, query or reply, as the signed-in member.
+ * Render it only for someone allowed to post (see CommentsSection).
  * Ctrl/⌘ + Enter posts. Errors are linked to the field and announced.
  */
 export function CommentComposer({
@@ -37,6 +38,7 @@ export function CommentComposer({
   variant = 'top',
   focusOnMount = false,
 }: CommentComposerProps) {
+  const viewer = useViewerAuthor();
   const fieldId = useId();
   const errorId = useId();
   const countId = useId();
@@ -103,7 +105,7 @@ export function CommentComposer({
       aria-label={label}
       className={cn('flex gap-3', inline && 'mt-3')}
     >
-      {!inline && <Avatar user={CURRENT_USER} className="mt-1 hidden sm:grid" />}
+      {!inline && viewer && <Avatar user={viewer} className="mt-1 hidden sm:grid" />}
       <div className="min-w-0 flex-1">
         <label htmlFor={fieldId} className="sr-only">
           {label}

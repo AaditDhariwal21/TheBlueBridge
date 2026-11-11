@@ -8,8 +8,8 @@ import { QueryBlogPanel } from '../query/QueryBlogPanel';
 
 interface BlogsLayoutProps {
   children: ReactNode;
-  /** Highlights this topic in the side panel. */
-  activeTopicSlug?: string;
+  /** Highlights this Query Blog in the side panel. */
+  activeQueryBlogId?: string;
   className?: string;
 }
 
@@ -18,7 +18,7 @@ interface BlogsLayoutProps {
  * Query Blogs panel (30%), on every Blogs page, as X keeps its side column.
  * Below `lg` the panel is not rendered; the feed page offers it as a tab instead.
  */
-export function BlogsLayout({ children, activeTopicSlug, className }: BlogsLayoutProps) {
+export function BlogsLayout({ children, activeQueryBlogId, className }: BlogsLayoutProps) {
   // Warm the other Blogs pages' chunks, so following a card never shows a blank fallback.
   useEffect(() => {
     preloadRoute(BLOGS_PATH);
@@ -33,7 +33,7 @@ export function BlogsLayout({ children, activeTopicSlug, className }: BlogsLayou
       <div className="min-w-0 lg:col-span-7">{children}</div>
       <aside aria-labelledby="query-panel-title" className="hidden lg:col-span-3 lg:block">
         <div className="sticky top-header max-h-[calc(100dvh-var(--spacing-header))] overflow-y-auto overscroll-contain pt-6 pb-8">
-          <QueryBlogPanel activeSlug={activeTopicSlug} />
+          <QueryBlogPanel activeId={activeQueryBlogId} />
         </div>
       </aside>
     </Container>

@@ -1,4 +1,5 @@
-import { Link, useParams } from 'react-router';
+import { useState } from 'react';
+import { Link, useNavigate, useParams } from 'react-router';
 
 import { usePageHead } from '../app/head';
 import { Button } from '../components/ui/Button';
@@ -9,21 +10,26 @@ import { BackLink } from '../features/blogs/components/shared/BackLink';
 import { BlogsLayout } from '../features/blogs/components/shared/BlogsLayout';
 import { PinIcon } from '../features/blogs/components/shared/Icons';
 import { RelativeTime } from '../features/blogs/components/shared/RelativeTime';
-import { Skeleton } from '../features/blogs/components/shared/Skeleton';
-import { StateMessage } from '../features/blogs/components/shared/StateMessage';
+import { Skeleton } from '../components/ui/Skeleton';
+import { CATEGORY_TEXT } from '../lib/categoryColor';
+import { cn } from '../lib/cn';
+import { StateMessage } from '../components/ui/StateMessage';
 import { blogsTabPath } from '../features/blogs/lib/paths';
 import { plural } from '../features/blogs/lib/text';
-import { useQueryBlog } from '../features/blogs/state/hooks';
+import { canModerate } from '../features/auth/permissions';
+import type { QueryBlog } from '../features/blogs/model/types';
+import { useDeleteQueryBlog, useQueryBlog } from '../features/blogs/state/hooks';
+import { useBlogActor } from '../features/blogs/state/viewer';
 
 export function QueryBlogPage() {
-  const { topicSlug = '' } = useParams();
-  const { data: topic, status, retry } = useQueryBlog(topicSlug);
+  const { queryBlogId = '' } = useParams();
+  const { data: topic, status, retry } = useQueryBlog(queryBlogId);
   const backTo = blogsTabPath('queries');
 
   usePageHead(
     topic
       ? {
-          title: `${topic.topic} Query Blog — The Blue Bridge`,
+          title: `${topic.title} Query Blog — The Blue Bridge`,
           description: `${topic.description} Ask the Blue Bridge community.`,
         }
       : status === 'missing'
@@ -36,26 +42,25 @@ export function QueryBlogPage() {
   );
 
   return (
-    <BlogsLayout activeTopicSlug={topicSlug}>
+    <BlogsLayout activeQueryBlogId={queryBlogId}>
       <BackLink fallback={backTo} label="Query Blogs" className="lg:mt-4" />
 
       <div className="mt-4">
         {topic ? (
           <>
             <header className="border-b border-border pb-8">
-              <p className="flex items-center gap-2 text-xs tracking-caps text-text-muted uppercase">
-                <PinIcon
-                  className={
-                    topic.tone === 'blue' ? 'size-3.5 text-accent' : 'size-3.5 text-accent-2'
-                  }
-                />
-                Pinned Query Blog
-              </p>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="flex items-center gap-2 text-xs tracking-caps text-text-muted uppercase">
+                  <PinIcon className={cn('size-3.5', CATEGORY_TEXT[topic.category.color])} />
+                  Pinned Query Blog · {topic.category.name}
+                </p>
+                <RemoveQueryBlog queryBlog={topic} />
+              </div>
               <h1
                 id="page-title"
                 className="mt-3 text-h1 tracking-tight wrap-break-word motion-safe:animate-rise"
               >
-                {topic.topic}
+                {topic.title}
               </h1>
               <p className="mt-3 max-w-reading text-lg text-text-muted">{topic.description}</p>
               <p className="mt-4 flex flex-wrap items-center gap-x-2 text-sm text-text-muted">
@@ -70,9 +75,10 @@ export function QueryBlogPage() {
             </header>
             <div className="mt-8">
               <CommentsSection
-                subject={{ kind: 'query', topicSlug: topic.slug }}
+                subject={{ kind: 'query', queryBlogId: topic.id }}
                 copy={QUERY_COPY}
                 authorId={null}
+                categoryIds={[topic.category.id]}
               />
             </div>
           </>
@@ -86,7 +92,7 @@ export function QueryBlogPage() {
               </Link>
             }
           >
-            Query Blogs are pinned topics such as Finance, Tech and Health. This one doesn’t exist.
+            It may have been removed, or the link may be incomplete.
           </StateMessage>
         ) : status === 'error' ? (
           <StateMessage
@@ -111,5 +117,46 @@ export function QueryBlogPage() {
         )}
       </div>
     </BlogsLayout>
+  );
+}
+
+/** Moderators only: removes the Query Blog, which frees its category for a new one. */
+function RemoveQueryBlog({ queryBlog }: { queryBlog: QueryBlog }) {
+  const actor = useBlogActor();
+  const deleteQueryBlog = useDeleteQueryBlog();
+  const navigate = useNavigate();
+  const [state, setState] = useState<'idle' | 'removing' | 'failed'>('idle');
+
+  if (!canModerate(actor, [queryBlog.category.id])) return null;
+
+  const handleClick = () => {
+    if (state === 'removing') return;
+    const message = `Remove the ${queryBlog.title} Query Blog and all its queries from view?`;
+    if (!window.confirm(message)) return;
+    setState('removing');
+    deleteQueryBlog(queryBlog.id).then(
+      () => void navigate(blogsTabPath('queries'), { replace: true }),
+      () => {
+        setState('failed');
+      },
+    );
+  };
+
+  return (
+    <span className="inline-flex items-center gap-2 text-sm">
+      {state === 'failed' && (
+        <span role="alert" className="text-danger">
+          Couldn’t remove it.
+        </span>
+      )}
+      <button
+        type="button"
+        onClick={handleClick}
+        aria-disabled={state === 'removing' || undefined}
+        className="min-h-11 px-1 text-text-muted underline-offset-4 transition-colors hover:text-danger hover:underline"
+      >
+        {state === 'removing' ? 'Removing…' : 'Remove Query Blog'}
+      </button>
+    </span>
   );
 }

@@ -34,6 +34,12 @@ export interface ThreadUi {
   /** Posted this session: always visible, and animated in once. */
   fresh: ReadonlySet<string>;
   replyingTo: string | null;
+  /** Whether the viewer may reply to this comment (see CommentsSection). */
+  canReply: (commentId: string) => boolean;
+  /** Whether the viewer moderates this blog (may remove any comment in it). */
+  canRemove: boolean;
+  /** Marks a comment removed. Rejects on failure. */
+  removeComment: (commentId: string) => Promise<void>;
   openReply: (commentId: string) => void;
   closeReply: () => void;
   postReply: (parentId: string, body: string) => Promise<void>;

@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { Link } from 'react-router';
 
 import { cn } from '../../../../lib/cn';
@@ -47,7 +47,8 @@ export function CommentItem({ node, depth, flat = false }: CommentItemProps) {
   // At the cap, replies are listed flat after this comment by the parent list.
   const nests = !flat && depth < ui.maxDepth && node.children.length > 0;
   const collapsed = nests && ui.collapsed.has(comment.id);
-  const isReplying = ui.replyingTo === comment.id;
+  const canReply = ui.canReply(comment.id);
+  const isReplying = canReply && ui.replyingTo === comment.id;
   const isAuthor = ui.authorId !== null && ui.authorId === comment.author.id;
   const repliesId = `${domId}-replies`;
   const replyCount = plural(node.descendantCount, 'reply', 'replies');
@@ -134,28 +135,43 @@ export function CommentItem({ node, depth, flat = false }: CommentItemProps) {
             )}
           </header>
 
-          <p className="mt-2 text-base wrap-break-word whitespace-pre-line text-text">
-            {comment.body}
-          </p>
+          {comment.removed ? (
+            <p className="mt-2 text-sm text-text-muted italic">
+              This {depth === 0 ? ui.copy.entryNoun[0] : 'reply'} was removed by a moderator.
+            </p>
+          ) : (
+            <p className="mt-2 text-base wrap-break-word whitespace-pre-line text-text">
+              {comment.body}
+            </p>
+          )}
 
           <div className="mt-0.5 -ml-2 flex flex-wrap items-center gap-x-1">
-            <button
-              ref={replyButtonRef}
-              type="button"
-              onClick={() => {
-                if (isReplying) cancelReply();
-                else ui.openReply(comment.id);
-              }}
-              aria-expanded={isReplying}
-              className={cn(
-                'inline-flex min-h-11 items-center gap-1.5 px-2 text-sm text-text-muted transition-colors hover:text-text',
-                isReplying && 'text-text',
-              )}
-            >
-              <ReplyIcon />
-              Reply
-              <span className="sr-only"> to {comment.author.name}</span>
-            </button>
+            {canReply && (
+              <button
+                ref={replyButtonRef}
+                type="button"
+                onClick={() => {
+                  if (isReplying) cancelReply();
+                  else ui.openReply(comment.id);
+                }}
+                aria-expanded={isReplying}
+                className={cn(
+                  'inline-flex min-h-11 items-center gap-1.5 px-2 text-sm text-text-muted transition-colors hover:text-text',
+                  isReplying && 'text-text',
+                )}
+              >
+                <ReplyIcon />
+                Reply
+                <span className="sr-only"> to {comment.author.name}</span>
+              </button>
+            )}
+            {ui.canRemove && !comment.removed && (
+              <RemoveButton
+                label={depth === 0 ? ui.copy.entryNoun[0] : 'reply'}
+                authorName={comment.author.name}
+                onRemove={() => ui.removeComment(comment.id)}
+              />
+            )}
             {collapsed && (
               <button
                 type="button"
@@ -190,6 +206,48 @@ export function CommentItem({ node, depth, flat = false }: CommentItemProps) {
         </div>
       </div>
     </article>
+  );
+}
+
+/** Moderators only. Asks first; shows a short error if the request fails. */
+function RemoveButton({
+  label,
+  authorName,
+  onRemove,
+}: {
+  label: string;
+  authorName: string;
+  onRemove: () => Promise<void>;
+}) {
+  const [state, setState] = useState<'idle' | 'removing' | 'failed'>('idle');
+  const handleClick = () => {
+    if (state === 'removing') return;
+    if (!window.confirm(`Remove this ${label} by ${authorName}? Its text will be hidden.`)) return;
+    setState('removing');
+    onRemove().catch(() => {
+      setState('failed');
+    });
+  };
+  return (
+    <>
+      <button
+        type="button"
+        onClick={handleClick}
+        aria-disabled={state === 'removing' || undefined}
+        className="inline-flex min-h-11 items-center px-2 text-sm text-text-muted transition-colors hover:text-danger"
+      >
+        {state === 'removing' ? 'Removing…' : 'Remove'}
+        <span className="sr-only">
+          {' '}
+          {label} by {authorName}
+        </span>
+      </button>
+      {state === 'failed' && (
+        <span role="alert" className="text-xs text-danger">
+          Couldn’t remove it. Try again.
+        </span>
+      )}
+    </>
   );
 }
 

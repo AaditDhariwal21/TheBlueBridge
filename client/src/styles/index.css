@@ -97,3 +97,72 @@
     transition-duration: 0.001ms !important;
   }
 }
+
+/* Formatted blog bodies: the published article and the editor share these, so
+   what you write looks like what you publish. Tokens only. */
+@layer components {
+  .rich-text {
+    color: var(--color-text);
+    line-height: 1.7;
+    overflow-wrap: break-word;
+  }
+  .rich-text > * + * {
+    margin-top: 1em;
+  }
+  .rich-text h2 {
+    margin-top: 1.6em;
+    font-family: var(--font-display);
+    font-size: var(--text-h3);
+    line-height: var(--text-h3--line-height);
+  }
+  .rich-text h3 {
+    margin-top: 1.4em;
+    font-family: var(--font-sans);
+    font-size: var(--text-lg);
+    font-weight: 600;
+    line-height: var(--text-lg--line-height);
+  }
+  .rich-text > :first-child {
+    margin-top: 0;
+  }
+  .rich-text ul,
+  .rich-text ol {
+    padding-left: 1.5em;
+  }
+  .rich-text ul {
+    list-style: disc;
+  }
+  .rich-text ol {
+    list-style: decimal;
+  }
+  .rich-text li + li,
+  .rich-text li > * + * {
+    margin-top: 0.35em;
+  }
+  .rich-text li::marker {
+    color: var(--color-text-muted);
+  }
+  .rich-text blockquote {
+    border-left: 2px solid var(--color-accent-soft);
+    padding-left: 1em;
+    color: var(--color-text-muted);
+    font-style: italic;
+  }
+  .rich-text strong {
+    font-weight: 600;
+  }
+  .rich-text a {
+    color: var(--color-accent);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  /* The editor's empty-state hint (TipTap Placeholder). */
+  .rich-text-editor p.is-editor-empty:first-child::before {
+    content: attr(data-placeholder);
+    float: left;
+    height: 0;
+    color: var(--color-text-subtle);
+    pointer-events: none;
+  }
+}

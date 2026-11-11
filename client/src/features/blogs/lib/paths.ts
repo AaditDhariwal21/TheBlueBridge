@@ -6,7 +6,7 @@ export type BlogsTab = 'feed' | 'queries';
 
 export const blogPath = (id: string) => `${BLOGS_PATH}/${encodeURIComponent(id)}`;
 
-export const queryBlogPath = (slug: string) => `${BLOGS_PATH}/query/${encodeURIComponent(slug)}`;
+export const queryBlogPath = (id: string) => `${BLOGS_PATH}/query/${encodeURIComponent(id)}`;
 
 /** The feed page with a given mobile tab selected. */
 export const blogsTabPath = (tab: BlogsTab) =>

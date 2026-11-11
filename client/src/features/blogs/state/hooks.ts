@@ -1,8 +1,15 @@
 import { useCallback, useContext, useEffect, useMemo } from 'react';
 
 import { blogsApi } from '../api';
-import { subjectKey } from '../lib/subject';
-import type { Blog, Comment, CommentSubject, NewBlogInput, QueryBlog } from '../model/types';
+import { subjectFromKey, subjectKey } from '../lib/subject';
+import type {
+  Blog,
+  Comment,
+  CommentSubject,
+  NewBlogInput,
+  NewQueryBlogInput,
+  QueryBlog,
+} from '../model/types';
 import { BlogsContext, type BlogsStore, type ItemStatus, type LoadStatus } from './store';
 
 /**
@@ -84,6 +91,18 @@ export function useCreateBlog(): (input: NewBlogInput) => Promise<Blog> {
   );
 }
 
+/** Moderators: removes a discussion blog. Rejects on failure. */
+export function useDeleteBlog(): (id: string) => Promise<void> {
+  const { dispatch } = useBlogsStore();
+  return useCallback(
+    async (id) => {
+      await blogsApi.deleteBlog(id);
+      dispatch({ type: 'blog/removed', id });
+    },
+    [dispatch],
+  );
+}
+
 /* --------------------------------------------------------------- one blog */
 
 export interface ItemResult<T> {
@@ -109,11 +128,14 @@ export function useBlog(id: string): ItemResult<Blog> {
     });
   }, [id, once, dispatch]);
 
+  // Feed items carry no body (and set no status), so a blog seen only in the
+  // feed is fetched in full when opened.
+  const complete = data && data.body !== null ? data : undefined;
   useEffect(() => {
-    if (!data && stored === undefined) load();
-  }, [data, stored, load]);
+    if (!complete && stored === undefined) load();
+  }, [complete, stored, load]);
 
-  return { data, status: data ? 'ready' : (stored ?? 'loading'), retry: load };
+  return { data: complete, status: complete ? 'ready' : (stored ?? 'loading'), retry: load };
 }
 
 /* ----------------------------------------------------------------- threads */
@@ -122,8 +144,10 @@ export interface ThreadResult {
   comments: Comment[];
   status: LoadStatus;
   retry: () => void;
-  /** Posts as the session user. Rejects on failure so the composer can say so. */
+  /** Posts as the signed-in member. Rejects on failure so the composer can say so. */
   post: (parentId: string | null, body: string) => Promise<Comment>;
+  /** Moderators: marks a comment removed. Rejects on failure. */
+  remove: (commentId: string) => Promise<void>;
 }
 
 const NO_COMMENTS: Comment[] = [];
@@ -134,13 +158,7 @@ export function useThread(subject: CommentSubject): ThreadResult {
   const thread = state.threads[key];
 
   // `subject` is usually a fresh object each render; the key is its identity.
-  const stableSubject = useMemo<CommentSubject>(
-    () =>
-      key.startsWith('blog:')
-        ? { kind: 'blog', blogId: key.slice('blog:'.length) }
-        : { kind: 'query', topicSlug: key.slice('query:'.length) },
-    [key],
-  );
+  const stableSubject = useMemo(() => subjectFromKey(key), [key]);
 
   const load = useCallback(() => {
     once(`thread:${key}`, async () => {
@@ -167,11 +185,20 @@ export function useThread(subject: CommentSubject): ThreadResult {
     [stableSubject, dispatch],
   );
 
+  const remove = useCallback(
+    async (commentId: string) => {
+      await blogsApi.deleteComment(stableSubject, commentId);
+      dispatch({ type: 'comment/removed', subject: stableSubject, commentId });
+    },
+    [stableSubject, dispatch],
+  );
+
   return {
     comments: thread?.comments ?? NO_COMMENTS,
     status: thread?.status ?? 'loading',
     retry: load,
     post,
+    remove,
   };
 }
 
@@ -203,35 +230,58 @@ export function useQueryBlogs(): QueryBlogsResult {
   }, [queryListStatus, load]);
 
   const queryBlogs = useMemo(
-    () => queryOrder.map((slug) => state.queryBlogs[slug]).filter(isDefined),
+    () => queryOrder.map((id) => state.queryBlogs[id]).filter(isDefined),
     [queryOrder, state.queryBlogs],
   );
 
   return { queryBlogs, status: queryListStatus, retry: load };
 }
 
-export function useQueryBlog(slug: string): ItemResult<QueryBlog> {
+export function useQueryBlog(id: string): ItemResult<QueryBlog> {
   const { state, dispatch, once } = useBlogsStore();
-  const data = state.queryBlogs[slug];
-  const stored = state.queryStatus[slug];
+  const data = state.queryBlogs[id];
+  const stored = state.queryStatus[id];
 
   const load = useCallback(() => {
-    once(`query:${slug}`, async () => {
-      dispatch({ type: 'query/request', slug });
+    once(`query:${id}`, async () => {
+      dispatch({ type: 'query/request', id });
       try {
-        const queryBlog = await blogsApi.getQueryBlog(slug);
-        dispatch(
-          queryBlog ? { type: 'query/received', queryBlog } : { type: 'query/missing', slug },
-        );
+        const queryBlog = await blogsApi.getQueryBlog(id);
+        dispatch(queryBlog ? { type: 'query/received', queryBlog } : { type: 'query/missing', id });
       } catch {
-        dispatch({ type: 'query/failed', slug });
+        dispatch({ type: 'query/failed', id });
       }
     });
-  }, [slug, once, dispatch]);
+  }, [id, once, dispatch]);
 
   useEffect(() => {
     if (!data && stored === undefined) load();
   }, [data, stored, load]);
 
   return { data, status: data ? 'ready' : (stored ?? 'loading'), retry: load };
+}
+
+/** Ambassadors (own categories) and admins. Rejects on failure, e.g. 409 if the category has one. */
+export function useCreateQueryBlog(): (input: NewQueryBlogInput) => Promise<QueryBlog> {
+  const { dispatch } = useBlogsStore();
+  return useCallback(
+    async (input) => {
+      const queryBlog = await blogsApi.createQueryBlog(input);
+      dispatch({ type: 'query/created', queryBlog });
+      return queryBlog;
+    },
+    [dispatch],
+  );
+}
+
+/** Moderators: removes a Query Blog (its category can then get a new one). */
+export function useDeleteQueryBlog(): (id: string) => Promise<void> {
+  const { dispatch } = useBlogsStore();
+  return useCallback(
+    async (id) => {
+      await blogsApi.deleteBlog(id);
+      dispatch({ type: 'query/removed', id });
+    },
+    [dispatch],
+  );
 }

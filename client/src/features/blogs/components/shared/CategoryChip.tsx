@@ -1,10 +1,9 @@
+import { CategoryDot } from '../../../../components/ui/CategoryDot';
 import { cn } from '../../../../lib/cn';
-import { getCategory } from '../../model/categories';
-import type { CategoryId } from '../../model/types';
+import type { Category } from '../../model/types';
 
-/** Square, hairline chip with a brand-accent dot. */
-export function CategoryChip({ id, className }: { id: CategoryId; className?: string }) {
-  const category = getCategory(id);
+/** Square, hairline chip with the category's colour dot. */
+export function CategoryChip({ category, className }: { category: Category; className?: string }) {
   return (
     <span
       className={cn(
@@ -12,14 +11,8 @@ export function CategoryChip({ id, className }: { id: CategoryId; className?: st
         className,
       )}
     >
-      <span
-        aria-hidden="true"
-        className={cn(
-          'size-1.5 rounded-full',
-          category.tone === 'blue' ? 'bg-accent-soft' : 'bg-accent-2-soft',
-        )}
-      />
-      {category.label}
+      <CategoryDot color={category.color} />
+      {category.name}
     </span>
   );
 }

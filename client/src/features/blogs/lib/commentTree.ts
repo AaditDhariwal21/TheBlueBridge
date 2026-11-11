@@ -19,7 +19,8 @@ const byTimeAsc = (a: CommentNode, b: CommentNode) =>
 
 /**
  * Rebuilds the reply tree from a flat list. Replies whose parent is missing
- * (e.g. deleted upstream) are promoted to top level rather than dropped.
+ * are promoted to top level rather than dropped. A removed comment is kept
+ * (as a placeholder) only while it still has replies to hold together.
  */
 export function buildCommentTree(comments: readonly Comment[]): CommentTree {
   const byId = new Map<string, CommentNode>();
@@ -39,10 +40,18 @@ export function buildCommentTree(comments: readonly Comment[]): CommentTree {
     node.descendantCount = node.children.reduce((sum, child) => sum + 1 + finalise(child), 0);
     return node.descendantCount;
   };
-  roots.forEach(finalise);
-  roots.sort((a, b) => byTimeAsc(b, a));
+  const prune = (nodes: CommentNode[]): CommentNode[] =>
+    nodes.filter((node) => {
+      node.children = prune(node.children);
+      const keep = !node.comment.removed || node.children.length > 0;
+      if (!keep) byId.delete(node.comment.id);
+      return keep;
+    });
+  const visible = prune(roots);
+  visible.forEach(finalise);
+  visible.sort((a, b) => byTimeAsc(b, a));
 
-  return { roots, byId };
+  return { roots: visible, byId };
 }
 
 /** Every reply beneath `node` in reading order (depth-first, oldest first). */

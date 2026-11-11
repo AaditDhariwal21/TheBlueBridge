@@ -17,7 +17,7 @@ interface BlogCardProps {
 }
 
 /** One line of preview text, whitespace collapsed; CSS clamps it to 2-3 lines. */
-const previewOf = (body: string) => body.replace(/\s+/g, ' ').trim();
+const previewOf = (text: string) => text.replace(/\s+/g, ' ').trim();
 
 /**
  * Feed card. The title is the card's only link and is stretched over the
@@ -71,11 +71,13 @@ export function BlogCard({ blog, highlight, onHighlightDone }: BlogCardProps) {
       </h2>
 
       <p className="mt-2 line-clamp-2 wrap-break-word text-text-muted sm:line-clamp-3">
-        {previewOf(blog.body)}
+        {previewOf(blog.excerpt)}
       </p>
 
       <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-text-muted">
-        <CategoryChip id={blog.categoryId} />
+        {blog.categories.map((category) => (
+          <CategoryChip key={category.id} category={category} />
+        ))}
         <span className="inline-flex items-center gap-1.5">
           <ClockIcon />
           {blog.readTimeMinutes} min read

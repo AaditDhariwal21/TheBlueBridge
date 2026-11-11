@@ -1,11 +1,7 @@
 import type { BlogsApi } from './contract';
-import { mockBlogsApi } from './mockBlogsApi';
+import { httpBlogsApi } from './httpBlogsApi';
 
-/**
- * THE integration point for the Blogs feature. Swap `mockBlogsApi` for an
- * HTTP implementation of `BlogsApi` and nothing else in the UI changes.
- */
-export const blogsApi: BlogsApi = mockBlogsApi;
+/** THE integration point for the Blogs feature: the UI only ever talks to this. */
+export const blogsApi: BlogsApi = httpBlogsApi;
 
-export { BlogsApiError } from './contract';
 export type { BlogsApi } from './contract';

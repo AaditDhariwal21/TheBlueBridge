@@ -1,23 +1,32 @@
+import type { ReactNode } from 'react';
+
 import { formatDate } from '../../lib/time';
 import { toParagraphs } from '../../lib/text';
 import type { Blog } from '../../model/types';
 import { Avatar } from '../shared/Avatar';
 import { CategoryChip } from '../shared/CategoryChip';
 import { ClockIcon } from '../shared/Icons';
+import { RichText } from './RichText';
 import { RelativeTime } from '../shared/RelativeTime';
-import { Skeleton } from '../shared/Skeleton';
+import { Skeleton } from '../../../../components/ui/Skeleton';
 
-/** The full blog: meta, title (the page's h1), author and long-form body. */
-export function BlogArticle({ blog }: { blog: Blog }) {
-  const paragraphs = toParagraphs(blog.body);
+/**
+ * The full blog: meta, title (the page's h1), author and long-form body.
+ * `actions` sits beside the meta line (e.g. a moderator's Remove button).
+ */
+export function BlogArticle({ blog, actions }: { blog: Blog; actions?: ReactNode }) {
+  const paragraphs = toParagraphs(blog.body ?? blog.excerpt);
   return (
     <article aria-labelledby="page-title">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-text-muted">
-        <CategoryChip id={blog.categoryId} />
+        {blog.categories.map((category) => (
+          <CategoryChip key={category.id} category={category} />
+        ))}
         <span className="inline-flex items-center gap-1.5">
           <ClockIcon />
           {blog.readTimeMinutes} min read
         </span>
+        {actions && <span className="ml-auto">{actions}</span>}
       </div>
 
       <h1
@@ -41,13 +50,17 @@ export function BlogArticle({ blog }: { blog: Blog }) {
         </p>
       </div>
 
-      <div className="mt-8 max-w-reading space-y-6 text-lg wrap-break-word text-text">
-        {paragraphs.map((paragraph, i) => (
-          <p key={i} className={i === 0 && paragraphs.length > 1 ? 'text-body-lg' : undefined}>
-            {paragraph}
-          </p>
-        ))}
-      </div>
+      {blog.content ? (
+        <RichText doc={blog.content} className="mt-8 max-w-reading text-lg" />
+      ) : (
+        <div className="mt-8 max-w-reading space-y-6 text-lg wrap-break-word text-text">
+          {paragraphs.map((paragraph, i) => (
+            <p key={i} className={i === 0 && paragraphs.length > 1 ? 'text-body-lg' : undefined}>
+              {paragraph}
+            </p>
+          ))}
+        </div>
+      )}
 
       <div
         aria-hidden="true"

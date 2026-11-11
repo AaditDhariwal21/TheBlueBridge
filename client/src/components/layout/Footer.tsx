@@ -2,7 +2,7 @@ import { COPYRIGHT, NAV_LINKS } from '../../app/site';
 import { Motto } from '../ui/Motto';
 import { Wordmark } from '../ui/Wordmark';
 import { Container } from './Container';
-import { NavItem, SignInLink } from './NavItem';
+import { NavItem, AccountLink } from './NavItem';
 
 export function Footer() {
   return (
@@ -22,7 +22,7 @@ export function Footer() {
                 </li>
               ))}
               <li>
-                <SignInLink />
+                <AccountLink />
               </li>
             </ul>
           </nav>

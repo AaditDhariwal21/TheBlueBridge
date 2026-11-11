@@ -8,6 +8,8 @@ interface RouteDef {
   path: string;
   Component: ComponentType;
   meta: PageMeta;
+  /** Signed-in users only; others are sent to sign-in and brought back (RequireAuth). */
+  requiresAuth?: true;
   /** Warms the route's chunk, e.g. on link hover/focus. */
   preload?: () => Promise<unknown>;
 }
@@ -73,7 +75,7 @@ export const ROUTES = {
   },
   // Listed before `blog` so the more specific pattern wins in findRoute().
   queryBlog: {
-    path: '/blogs/query/:topicSlug',
+    path: '/blogs/query/:queryBlogId',
     ...lazyPage(() => import('../pages/QueryBlogPage'), 'QueryBlogPage'),
     // Generic until the topic loads; the page then sets its own title.
     meta: {
@@ -89,6 +91,34 @@ export const ROUTES = {
       description: 'A blog from the Blue Bridge community of professional women from Jodhpur.',
     },
   },
+  signIn: {
+    path: '/sign-in',
+    ...lazyPage(() => import('../pages/SignInPage'), 'SignInPage'),
+    meta: {
+      title: 'Sign in — The Blue Bridge',
+      description: 'Sign in to The Blue Bridge.',
+      noindex: true,
+    },
+  },
+  signUp: {
+    path: '/sign-up',
+    ...lazyPage(() => import('../pages/SignUpPage'), 'SignUpPage'),
+    meta: {
+      title: 'Create your account — The Blue Bridge',
+      description: 'Join The Blue Bridge with an invitation from a member.',
+      noindex: true,
+    },
+  },
+  account: {
+    path: '/account',
+    ...lazyPage(() => import('../pages/AccountPage'), 'AccountPage'),
+    requiresAuth: true,
+    meta: {
+      title: 'Your account — The Blue Bridge',
+      description: 'Your Blue Bridge account.',
+      noindex: true,
+    },
+  },
 } satisfies Record<string, RouteDef>;
 
 export const NOT_FOUND = {
@@ -100,11 +130,11 @@ export const NOT_FOUND = {
   },
 } satisfies Omit<RouteDef, 'path'>;
 
-const ALL: RouteDef[] = Object.values(ROUTES);
+export const ROUTE_LIST: readonly RouteDef[] = Object.values(ROUTES);
 
 /** The route whose pattern matches `pathname` (static or `:param` segments). */
 export function findRoute(pathname: string): RouteDef | undefined {
-  return ALL.find((r) => matchPath({ path: r.path, end: true }, pathname) !== null);
+  return ROUTE_LIST.find((r) => matchPath({ path: r.path, end: true }, pathname) !== null);
 }
 
 export function preloadRoute(path: string): void {

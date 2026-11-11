@@ -1,16 +1,16 @@
 import { createContext, type Dispatch } from 'react';
 
 import { subjectKey, type SubjectKey } from '../lib/subject';
-import type { Blog, Comment, Page, QueryBlog } from '../model/types';
+import type { Blog, Comment, CommentSubject, Page, QueryBlog } from '../model/types';
 
 /**
  * Client-side cache for the Blogs feature: what has been fetched or created
- * this session. The API layer owns the data; this only remembers responses
- * so navigating between pages is instant and in-session posts appear at once.
+ * this session. The API owns the data; this only remembers responses so
+ * navigating between pages is instant and in-session changes appear at once.
  */
 
 export type LoadStatus = 'idle' | 'loading' | 'ready' | 'error';
-/** For single resources fetched by id or slug. */
+/** For single resources fetched by id. */
 export type ItemStatus = 'loading' | 'ready' | 'missing' | 'error';
 
 export interface FeedState {
@@ -48,18 +48,22 @@ export type BlogsAction =
   | { type: 'blog/missing'; id: string }
   | { type: 'blog/failed'; id: string }
   | { type: 'blog/created'; blog: Blog }
+  | { type: 'blog/removed'; id: string }
   | { type: 'blog/highlightSeen' }
   | { type: 'thread/request'; key: SubjectKey }
   | { type: 'thread/received'; key: SubjectKey; comments: Comment[] }
   | { type: 'thread/failed'; key: SubjectKey }
   | { type: 'comment/created'; comment: Comment }
+  | { type: 'comment/removed'; subject: CommentSubject; commentId: string }
   | { type: 'queries/request' }
   | { type: 'queries/received'; queryBlogs: QueryBlog[] }
   | { type: 'queries/failed' }
-  | { type: 'query/request'; slug: string }
+  | { type: 'query/request'; id: string }
   | { type: 'query/received'; queryBlog: QueryBlog }
-  | { type: 'query/missing'; slug: string }
-  | { type: 'query/failed'; slug: string };
+  | { type: 'query/missing'; id: string }
+  | { type: 'query/failed'; id: string }
+  | { type: 'query/created'; queryBlog: QueryBlog }
+  | { type: 'query/removed'; id: string };
 
 export const initialBlogsState: BlogsState = {
   blogs: {},
@@ -73,6 +77,11 @@ export const initialBlogsState: BlogsState = {
   justPublishedId: null,
 };
 
+/** A feed item (no body) never erases a body that was already fetched. */
+function mergeBlog(existing: Blog | undefined, incoming: Blog): Blog {
+  return { ...incoming, body: incoming.body ?? existing?.body ?? null };
+}
+
 export function blogsReducer(state: BlogsState, action: BlogsAction): BlogsState {
   switch (action.type) {
     case 'feed/request':
@@ -81,17 +90,12 @@ export function blogsReducer(state: BlogsState, action: BlogsAction): BlogsState
     case 'feed/received': {
       const { items, nextCursor } = action.page;
       const blogs = { ...state.blogs };
-      const blogStatus = { ...state.blogStatus };
-      for (const blog of items) {
-        blogs[blog.id] = blog;
-        blogStatus[blog.id] = 'ready';
-      }
+      for (const blog of items) blogs[blog.id] = mergeBlog(blogs[blog.id], blog);
       const seen = new Set(state.feed.ids);
       const ids = [...state.feed.ids, ...items.map((b) => b.id).filter((id) => !seen.has(id))];
       return {
         ...state,
         blogs,
-        blogStatus,
         feed: { ids, nextCursor, status: 'ready', done: nextCursor === null },
       };
     }
@@ -105,7 +109,10 @@ export function blogsReducer(state: BlogsState, action: BlogsAction): BlogsState
     case 'blog/received':
       return {
         ...state,
-        blogs: { ...state.blogs, [action.blog.id]: action.blog },
+        blogs: {
+          ...state.blogs,
+          [action.blog.id]: mergeBlog(state.blogs[action.blog.id], action.blog),
+        },
         blogStatus: { ...state.blogStatus, [action.blog.id]: 'ready' },
       };
 
@@ -124,6 +131,15 @@ export function blogsReducer(state: BlogsState, action: BlogsAction): BlogsState
         feed: { ...state.feed, ids: [blog.id, ...state.feed.ids.filter((id) => id !== blog.id)] },
         threads: { ...state.threads, [`blog:${blog.id}`]: { status: 'ready', comments: [] } },
         justPublishedId: blog.id,
+      };
+    }
+
+    case 'blog/removed': {
+      return {
+        ...state,
+        blogs: without(state.blogs, action.id),
+        blogStatus: { ...state.blogStatus, [action.id]: 'missing' },
+        feed: { ...state.feed, ids: state.feed.ids.filter((id) => id !== action.id) },
       };
     }
 
@@ -155,7 +171,27 @@ export function blogsReducer(state: BlogsState, action: BlogsAction): BlogsState
       };
 
     case 'comment/created':
-      return applyNewComment(state, action.comment);
+      return applyCommentCountChange(appendComment(state, action.comment), action.comment, 1);
+
+    case 'comment/removed': {
+      const key = subjectKey(action.subject);
+      const thread = state.threads[key];
+      const target = thread?.comments.find((c) => c.id === action.commentId);
+      if (!thread || !target || target.removed) return state;
+      const next: BlogsState = {
+        ...state,
+        threads: {
+          ...state.threads,
+          [key]: {
+            ...thread,
+            comments: thread.comments.map((c) =>
+              c.id === target.id ? { ...c, removed: true, body: null } : c,
+            ),
+          },
+        },
+      };
+      return applyCommentCountChange(next, target, -1);
+    }
 
     case 'queries/request':
       return { ...state, queryListStatus: 'loading' };
@@ -164,14 +200,14 @@ export function blogsReducer(state: BlogsState, action: BlogsAction): BlogsState
       const queryBlogs = { ...state.queryBlogs };
       const queryStatus = { ...state.queryStatus };
       for (const q of action.queryBlogs) {
-        queryBlogs[q.slug] = q;
-        queryStatus[q.slug] = 'ready';
+        queryBlogs[q.id] = q;
+        queryStatus[q.id] = 'ready';
       }
       return {
         ...state,
         queryBlogs,
         queryStatus,
-        queryOrder: action.queryBlogs.map((q) => q.slug),
+        queryOrder: action.queryBlogs.map((q) => q.id),
         queryListStatus: 'ready',
       };
     }
@@ -180,28 +216,52 @@ export function blogsReducer(state: BlogsState, action: BlogsAction): BlogsState
       return { ...state, queryListStatus: 'error' };
 
     case 'query/request':
-      return { ...state, queryStatus: { ...state.queryStatus, [action.slug]: 'loading' } };
+      return { ...state, queryStatus: { ...state.queryStatus, [action.id]: 'loading' } };
 
     case 'query/received':
       return {
         ...state,
-        queryBlogs: { ...state.queryBlogs, [action.queryBlog.slug]: action.queryBlog },
-        queryStatus: { ...state.queryStatus, [action.queryBlog.slug]: 'ready' },
+        queryBlogs: { ...state.queryBlogs, [action.queryBlog.id]: action.queryBlog },
+        queryStatus: { ...state.queryStatus, [action.queryBlog.id]: 'ready' },
       };
 
     case 'query/missing':
-      return { ...state, queryStatus: { ...state.queryStatus, [action.slug]: 'missing' } };
+      return { ...state, queryStatus: { ...state.queryStatus, [action.id]: 'missing' } };
 
     case 'query/failed':
-      return { ...state, queryStatus: { ...state.queryStatus, [action.slug]: 'error' } };
+      return { ...state, queryStatus: { ...state.queryStatus, [action.id]: 'error' } };
+
+    case 'query/created': {
+      const { queryBlog } = action;
+      return {
+        ...state,
+        queryBlogs: { ...state.queryBlogs, [queryBlog.id]: queryBlog },
+        queryStatus: { ...state.queryStatus, [queryBlog.id]: 'ready' },
+        queryOrder: [queryBlog.id, ...state.queryOrder.filter((id) => id !== queryBlog.id)],
+        threads: { ...state.threads, [`query:${queryBlog.id}`]: { status: 'ready', comments: [] } },
+      };
+    }
+
+    case 'query/removed': {
+      return {
+        ...state,
+        queryBlogs: without(state.queryBlogs, action.id),
+        queryStatus: { ...state.queryStatus, [action.id]: 'missing' },
+        queryOrder: state.queryOrder.filter((id) => id !== action.id),
+      };
+    }
   }
 }
 
-/** Adds a posted comment to its thread and bumps the counts shown elsewhere. */
-function applyNewComment(state: BlogsState, comment: Comment): BlogsState {
+/** A copy of the record without one key. */
+function without<T>(record: Partial<Record<string, T>>, key: string): Partial<Record<string, T>> {
+  return Object.fromEntries(Object.entries(record).filter(([k]) => k !== key));
+}
+
+function appendComment(state: BlogsState, comment: Comment): BlogsState {
   const key = subjectKey(comment.subject);
   const current = state.threads[key];
-  const next: BlogsState = {
+  return {
     ...state,
     threads: {
       ...state.threads,
@@ -211,26 +271,31 @@ function applyNewComment(state: BlogsState, comment: Comment): BlogsState {
       },
     },
   };
+}
 
+/** Keeps the counts shown on cards in step with a comment added (+1) or removed (-1). */
+function applyCommentCountChange(state: BlogsState, comment: Comment, delta: 1 | -1): BlogsState {
   if (comment.subject.kind === 'blog') {
     const blog = state.blogs[comment.subject.blogId];
-    if (blog) {
-      next.blogs = { ...state.blogs, [blog.id]: { ...blog, commentCount: blog.commentCount + 1 } };
-    }
-  } else {
-    const topic = state.queryBlogs[comment.subject.topicSlug];
-    if (topic) {
-      next.queryBlogs = {
-        ...state.queryBlogs,
-        [topic.slug]: {
-          ...topic,
-          queryCount: topic.queryCount + (comment.parentId === null ? 1 : 0),
-          lastActivityAt: comment.createdAt,
-        },
-      };
-    }
+    if (!blog) return state;
+    return {
+      ...state,
+      blogs: { ...state.blogs, [blog.id]: { ...blog, commentCount: blog.commentCount + delta } },
+    };
   }
-  return next;
+  const queryBlog = state.queryBlogs[comment.subject.queryBlogId];
+  if (!queryBlog) return state;
+  return {
+    ...state,
+    queryBlogs: {
+      ...state.queryBlogs,
+      [queryBlog.id]: {
+        ...queryBlog,
+        queryCount: queryBlog.queryCount + (comment.parentId === null ? delta : 0),
+        lastActivityAt: delta > 0 ? comment.createdAt : queryBlog.lastActivityAt,
+      },
+    },
+  };
 }
 
 export interface BlogsStore {

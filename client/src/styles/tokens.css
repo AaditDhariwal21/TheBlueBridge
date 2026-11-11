@@ -26,6 +26,10 @@
   --palette-red-700: #b42318;
   --palette-green-200: #9fe0bf;
   --palette-green-700: #1e6b4a;
+  /* Category dots (decorative; the category name is always printed beside them). */
+  --palette-green-400: #4fb37e;
+  --palette-orange-400: #ee9a4d;
+  --palette-black: #141414;
 
   /* Motion (no Tailwind namespace; consumed by CSS below and in index.css). */
   --duration-fast: 150ms;
@@ -67,6 +71,13 @@
   --color-focus: var(--palette-blue-600);
   --color-danger: var(--palette-red-700);
   --color-success: var(--palette-green-700);
+  /* Category colours: the value of categories.color in the database, one token each.
+     Same in every tone. */
+  --color-category-pink: var(--palette-pink-400);
+  --color-category-green: var(--palette-green-400);
+  --color-category-blue: var(--palette-blue-400);
+  --color-category-orange: var(--palette-orange-400);
+  --color-category-black: var(--palette-black);
   --color-transparent: transparent;
   --color-current: currentColor;
 

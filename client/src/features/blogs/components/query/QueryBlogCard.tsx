@@ -1,5 +1,7 @@
 import { Link } from 'react-router';
 
+import { CategoryDot } from '../../../../components/ui/CategoryDot';
+import { CATEGORY_BG } from '../../../../lib/categoryColor';
 import { cn } from '../../../../lib/cn';
 import { queryBlogPath } from '../../lib/paths';
 import { plural } from '../../lib/text';
@@ -22,7 +24,8 @@ export function QueryBlogCard({
   active,
   headingLevel: Heading = 'h3',
 }: QueryBlogCardProps) {
-  const rule = queryBlog.tone === 'blue' ? 'bg-accent-soft' : 'bg-accent-2-soft';
+  const { color } = queryBlog.category;
+  const rule = CATEGORY_BG[color];
   return (
     <article
       className={cn(
@@ -41,13 +44,14 @@ export function QueryBlogCard({
         )}
       />
       <div className="flex items-start justify-between gap-3">
-        <Heading className="font-display text-h3 wrap-break-word">
+        <Heading className="flex min-w-0 items-center gap-2 font-display text-h3 wrap-break-word">
+          <CategoryDot color={color} />
           <Link
-            to={queryBlogPath(queryBlog.slug)}
+            to={queryBlogPath(queryBlog.id)}
             aria-current={active ? 'page' : undefined}
             className="outline-none after:absolute after:inset-0"
           >
-            {queryBlog.topic}
+            {queryBlog.title}
           </Link>
         </Heading>
         <ArrowRightIcon className="mt-1.5 text-text-muted transition-transform group-hover:translate-x-0.5 group-hover:text-text" />

@@ -24,19 +24,6 @@ export function initialsOf(name: string): string {
   return (first + last).toUpperCase() || '?';
 }
 
-/** URL-safe slug from a title. Falls back to "blog" when nothing usable remains. */
-export function slugify(text: string, maxLength = 60): string {
-  const slug = text
-    .normalize('NFKD')
-    .replace(/[̀-ͯ]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, maxLength)
-    .replace(/-+$/, '');
-  return slug || 'blog';
-}
-
 /** "1 reply" / "3 replies". */
 export function plural(count: number, one: string, many: string): string {
   return `${count.toLocaleString('en-IN')} ${count === 1 ? one : many}`;

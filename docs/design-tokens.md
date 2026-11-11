@@ -90,6 +90,20 @@ dark mode a single extra scope (`[data-theme="dark"]`).
 | Error text / border      | `--color-danger`        | `#b42318` **[new]** | `#ffb4a8` **[new]**             |
 | Success                  | `--color-success`       | `#1e6b4a` **[new]** | `#9fe0bf` **[new]**             |
 
+**Category colours [new].** Each category has a `color` in the database (`public.category_color`:
+`pink`, `green`, `blue`, `orange`, `black`). The client maps it to one token, rendered only as a
+dot beside the category's name (`components/ui/CategoryDot.tsx`). Same in every tone.
+
+| Category         | `color`  | Token                     | Value               |
+| ---------------- | -------- | ------------------------- | ------------------- |
+| Health           | `pink`   | `--color-category-pink`   | `pink-400 #e393c2`  |
+| Finance          | `green`  | `--color-category-green`  | `#4fb37e` **[new]** |
+| Tech             | `blue`   | `--color-category-blue`   | `blue-400 #7fa9ef`  |
+| Entrepreneurship | `orange` | `--color-category-orange` | `#ee9a4d` **[new]** |
+| Legal            | `black`  | `--color-category-black`  | `#141414` **[new]** |
+
+On a filled (navy) chip the dot gets a paper ring so black stays visible.
+
 "Soft" accents are only for non-text decoration (rules, dots, glows) where 3:1 isn't required.
 
 ### 2.4 Contrast audit (WCAG 2.2)

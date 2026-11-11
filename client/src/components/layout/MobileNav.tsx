@@ -5,7 +5,7 @@ import { NAV_LINKS } from '../../app/site';
 import { Motto } from '../ui/Motto';
 import { Wordmark } from '../ui/Wordmark';
 import { Container } from './Container';
-import { NavItem, SignInLink } from './NavItem';
+import { NavItem, AccountLink } from './NavItem';
 
 /** Must match the `sm` breakpoint where the desktop nav takes over. */
 const DESKTOP_QUERY = '(min-width: 40rem)';
@@ -99,7 +99,7 @@ export function MobileNav() {
                 </li>
               ))}
               <li>
-                <SignInLink className="block py-2" />
+                <AccountLink className="block py-2" onNavigate={hide} />
               </li>
             </ul>
             <Motto className="mt-auto pt-12" />

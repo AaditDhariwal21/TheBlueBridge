@@ -1,65 +1,69 @@
+import type { Category } from '../../categories/types';
+import type { RichDoc } from './richText';
+
 /**
- * Domain models for the Blogs feature. These mirror what a real API would
- * return, so the UI never depends on how the mock layer stores data.
- * Timestamps are ISO-8601 strings, as they would arrive over the wire.
+ * Domain models for the Blogs feature, as the UI uses them. The HTTP layer
+ * (api/httpBlogsApi.ts) maps API responses into these shapes.
+ * Timestamps are ISO-8601 strings, as they arrive over the wire.
  */
 
+export type { Category };
+
+/** A person as the Blogs section shows them. */
 export interface User {
   id: string;
   name: string;
-  /** Plain descriptive text, e.g. "Chartered Accountant". Not a role. */
+  /** Their occupation. Plain descriptive text, not a role. */
   profession: string;
   /** One or two letters for the generated avatar. */
   initials: string;
 }
 
-export type CategoryId =
-  'career' | 'finance' | 'health' | 'entrepreneurship' | 'work-life' | 'local' | 'tech';
-
-export interface Category {
-  id: CategoryId;
-  label: string;
-  /** Which brand accent the category's dot uses. Decorative only. */
-  tone: 'blue' | 'pink';
-}
-
 export interface Blog {
   id: string;
   title: string;
-  /** Plain text. Paragraphs are separated by a blank line. */
-  body: string;
-  categoryId: CategoryId;
+  /** The start of the body, for feed cards ("…" when shortened). */
+  excerpt: string;
+  /** Plain text, paragraphs separated by a blank line. Null until the blog itself is fetched. */
+  body: string | null;
+  /** The formatted document (fetched with the body); null for blogs without formatting. */
+  content: RichDoc | null;
+  /** One or more. Ambassadors for any of them can moderate the blog. */
+  categories: Category[];
   author: User;
   createdAt: string;
   readTimeMinutes: number;
-  /** Total comments including replies. */
+  /** Live comments including replies. */
   commentCount: number;
 }
 
+/** A pinned topic space: one per category, started by an ambassador or admin. */
 export interface QueryBlog {
-  slug: string;
-  topic: string;
+  id: string;
+  title: string;
   description: string;
-  /** Number of top-level queries. */
+  category: Category;
+  /** Live top-level queries. */
   queryCount: number;
   lastActivityAt: string;
-  tone: 'blue' | 'pink';
 }
 
-/** What a comment thread hangs off: a blog, or a Query Blog topic. */
+/** What a comment thread hangs off: a discussion blog, or a Query Blog. */
 export type CommentSubject =
-  { kind: 'blog'; blogId: string } | { kind: 'query'; topicSlug: string };
+  { kind: 'blog'; blogId: string } | { kind: 'query'; queryBlogId: string };
 
 /**
  * One entry in a thread. Threads are flat lists; the tree is rebuilt from
  * `parentId` on the client. On a Query Blog, a top-level comment is a query.
+ * A removed comment keeps its place (so its replies stay attached) but has no body.
  */
 export interface Comment {
   id: string;
   subject: CommentSubject;
   parentId: string | null;
   author: User;
-  body: string;
+  body: string | null;
+  removed: boolean;
   createdAt: string;
 }
 
@@ -71,8 +75,28 @@ export interface Page<T> {
 
 export interface NewBlogInput {
   title: string;
+  content: RichDoc;
+  categoryIds: string[];
+}
+
+/** An entry in "My blogs": a discussion blog or a Query Blog the member started. */
+export interface MyBlog extends Blog {
+  type: 'discussion' | 'query';
+}
+
+/** An entry in "My comments": what was written, and where. */
+export interface MyComment {
+  id: string;
+  parentId: string | null;
   body: string;
-  categoryId: CategoryId;
+  createdAt: string;
+  blog: { id: string; title: string; type: 'discussion' | 'query' };
+}
+
+export interface NewQueryBlogInput {
+  categoryId: string;
+  title: string;
+  description: string;
 }
 
 export interface NewCommentInput {

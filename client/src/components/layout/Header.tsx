@@ -4,7 +4,7 @@ import { useScrolled } from '../../lib/useScrolled';
 import { Wordmark } from '../ui/Wordmark';
 import { Container } from './Container';
 import { MobileNav } from './MobileNav';
-import { NavItem, SignInLink } from './NavItem';
+import { NavItem, AccountLink } from './NavItem';
 
 export function Header() {
   const scrolled = useScrolled();
@@ -28,7 +28,7 @@ export function Header() {
               </li>
             ))}
             <li>
-              <SignInLink />
+              <AccountLink />
             </li>
           </ul>
         </nav>

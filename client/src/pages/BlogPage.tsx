@@ -1,4 +1,5 @@
-import { Link, useParams } from 'react-router';
+import { useState } from 'react';
+import { Link, useNavigate, useParams } from 'react-router';
 
 import { usePageHead } from '../app/head';
 import { Button } from '../components/ui/Button';
@@ -8,9 +9,12 @@ import { CommentsSection } from '../features/blogs/components/comments/CommentsS
 import { BLOG_COMMENTS_COPY } from '../features/blogs/components/comments/threadContext';
 import { BackLink } from '../features/blogs/components/shared/BackLink';
 import { BlogsLayout } from '../features/blogs/components/shared/BlogsLayout';
-import { StateMessage } from '../features/blogs/components/shared/StateMessage';
+import { StateMessage } from '../components/ui/StateMessage';
+import { canModerate } from '../features/auth/permissions';
 import { BLOGS_PATH } from '../features/blogs/lib/paths';
-import { useBlog } from '../features/blogs/state/hooks';
+import type { Blog } from '../features/blogs/model/types';
+import { useBlog, useDeleteBlog } from '../features/blogs/state/hooks';
+import { useBlogActor } from '../features/blogs/state/viewer';
 
 const DESCRIPTION_LENGTH = 155;
 
@@ -22,7 +26,7 @@ export function BlogPage() {
     blog
       ? {
           title: `${blog.title} — The Blue Bridge`,
-          description: summarise(blog.body),
+          description: summarise(blog.body ?? blog.excerpt),
         }
       : status === 'missing'
         ? {
@@ -40,12 +44,13 @@ export function BlogPage() {
       <div className="mt-4">
         {blog ? (
           <>
-            <BlogArticle blog={blog} />
+            <BlogArticle blog={blog} actions={<RemoveBlog blog={blog} />} />
             <div className="mt-12 border-t border-border pt-10">
               <CommentsSection
                 subject={{ kind: 'blog', blogId: blog.id }}
                 copy={BLOG_COMMENTS_COPY}
                 authorId={blog.author.id}
+                categoryIds={blog.categories.map((category) => category.id)}
               />
             </div>
           </>
@@ -79,6 +84,52 @@ export function BlogPage() {
         )}
       </div>
     </BlogsLayout>
+  );
+}
+
+/** Moderators only: removes the blog after a confirmation, then returns to the feed. */
+function RemoveBlog({ blog }: { blog: Blog }) {
+  const actor = useBlogActor();
+  const deleteBlog = useDeleteBlog();
+  const navigate = useNavigate();
+  const [state, setState] = useState<'idle' | 'removing' | 'failed'>('idle');
+
+  if (
+    !canModerate(
+      actor,
+      blog.categories.map((category) => category.id),
+    )
+  )
+    return null;
+
+  const handleClick = () => {
+    if (state === 'removing') return;
+    if (!window.confirm(`Remove “${blog.title}”? It will disappear from the feed.`)) return;
+    setState('removing');
+    deleteBlog(blog.id).then(
+      () => void navigate(BLOGS_PATH, { replace: true }),
+      () => {
+        setState('failed');
+      },
+    );
+  };
+
+  return (
+    <span className="inline-flex items-center gap-2">
+      {state === 'failed' && (
+        <span role="alert" className="text-danger">
+          Couldn’t remove it.
+        </span>
+      )}
+      <button
+        type="button"
+        onClick={handleClick}
+        aria-disabled={state === 'removing' || undefined}
+        className="min-h-11 px-1 text-sm text-text-muted underline-offset-4 transition-colors hover:text-danger hover:underline"
+      >
+        {state === 'removing' ? 'Removing…' : 'Remove blog'}
+      </button>
+    </span>
   );
 }
 

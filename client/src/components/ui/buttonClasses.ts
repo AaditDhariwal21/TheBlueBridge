@@ -21,7 +21,7 @@ export interface ButtonStyleProps {
   size?: keyof typeof SIZES | undefined;
 }
 
-/** Button styling, shared by <Button>, <ButtonLink> and router <Link>s. */
+/** Button styling, shared by <Button> and router <Link>s. */
 export function buttonClasses({
   variant = 'solid',
   size = 'md',

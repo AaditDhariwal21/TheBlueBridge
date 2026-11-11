@@ -3,7 +3,7 @@ import { useEffect, useRef, type ReactNode } from 'react';
 import { Button } from '../../../../components/ui/Button';
 import { plural } from '../../lib/text';
 import { useFeed } from '../../state/hooks';
-import { StateMessage } from '../shared/StateMessage';
+import { StateMessage } from '../../../../components/ui/StateMessage';
 import { BlogCard, BlogCardSkeleton } from './BlogCard';
 
 /** Start fetching the next page well before the user reaches the end. */

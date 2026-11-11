@@ -1,4 +1,6 @@
-import { PLACEHOLDER_HREF } from '../../app/site';
+import { Link } from 'react-router';
+
+import { AUTH_PATHS } from '../../features/auth/paths';
 import { Container } from '../layout/Container';
 import { Section } from '../layout/Section';
 import { Constellation } from '../ui/Constellation';
@@ -16,12 +18,12 @@ export function WaitlistCta() {
           </h2>
           <p className="mx-auto mt-4 max-w-reading text-text-muted">
             Ready to join?{' '}
-            <a
-              href={PLACEHOLDER_HREF.createAccount}
+            <Link
+              to={AUTH_PATHS.signUp}
               className="text-text underline decoration-accent-2-soft underline-offset-4 transition-colors hover:decoration-text"
             >
               Create your account
-            </a>
+            </Link>
             . Not ready yet? Leave your details and we’ll keep you posted.
           </p>
         </Reveal>

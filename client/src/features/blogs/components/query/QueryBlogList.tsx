@@ -1,20 +1,22 @@
 import { Button } from '../../../../components/ui/Button';
+import { Skeleton } from '../../../../components/ui/Skeleton';
+import { StateMessage } from '../../../../components/ui/StateMessage';
 import { useQueryBlogs } from '../../state/hooks';
-import { Skeleton } from '../shared/Skeleton';
-import { StateMessage } from '../shared/StateMessage';
 import { QueryBlogCard } from './QueryBlogCard';
+import { StartQueryBlog } from './StartQueryBlog';
 
 interface QueryBlogListProps {
-  activeSlug?: string | undefined;
+  activeId?: string | undefined;
   headingLevel?: 'h2' | 'h3';
 }
 
-/** The pinned topic cards, with loading and error states. */
-export function QueryBlogList({ activeSlug, headingLevel = 'h3' }: QueryBlogListProps) {
+/** The pinned Query Blogs, with loading, empty and error states, and "Start a Query Blog". */
+export function QueryBlogList({ activeId, headingLevel = 'h3' }: QueryBlogListProps) {
   const { queryBlogs, status, retry } = useQueryBlogs();
 
+  let content;
   if (status === 'error') {
-    return (
+    content = (
       <StateMessage
         role="alert"
         headingLevel={headingLevel}
@@ -28,21 +30,17 @@ export function QueryBlogList({ activeSlug, headingLevel = 'h3' }: QueryBlogList
         Check your connection and try again.
       </StateMessage>
     );
-  }
-
-  if (status === 'ready' && queryBlogs.length === 0) {
-    return (
+  } else if (status === 'ready' && queryBlogs.length === 0) {
+    content = (
       <StateMessage headingLevel={headingLevel} title="No Query Blogs yet">
-        Topic spaces will appear here.
+        Each category gets one. Started by admins, answered by its ambassadors.
       </StateMessage>
     );
-  }
-
-  if (queryBlogs.length === 0) {
-    return (
+  } else if (queryBlogs.length === 0) {
+    content = (
       <div aria-busy="true" className="flex flex-col gap-3">
         <span className="sr-only">Loading Query Blogs…</span>
-        {Array.from({ length: 4 }, (_, i) => (
+        {Array.from({ length: 3 }, (_, i) => (
           <div key={i} className="border border-border bg-surface p-4">
             <Skeleton className="h-5 w-1/3" />
             <Skeleton className="mt-3 h-3 w-full" />
@@ -51,15 +49,22 @@ export function QueryBlogList({ activeSlug, headingLevel = 'h3' }: QueryBlogList
         ))}
       </div>
     );
+  } else {
+    content = (
+      <ul className="flex flex-col gap-3">
+        {queryBlogs.map((q) => (
+          <li key={q.id}>
+            <QueryBlogCard queryBlog={q} active={q.id === activeId} headingLevel={headingLevel} />
+          </li>
+        ))}
+      </ul>
+    );
   }
 
   return (
-    <ul className="flex flex-col gap-3">
-      {queryBlogs.map((q) => (
-        <li key={q.slug}>
-          <QueryBlogCard queryBlog={q} active={q.slug === activeSlug} headingLevel={headingLevel} />
-        </li>
-      ))}
-    </ul>
+    <div className="flex flex-col gap-3">
+      {content}
+      <StartQueryBlog />
+    </div>
   );
 }

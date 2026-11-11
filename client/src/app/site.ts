@@ -17,15 +17,6 @@ export const NAV_LINKS = [
   { to: '/about', label: 'About' },
 ] as const;
 
-/**
- * Placeholder destinations. Auth is out of scope for this phase, so these are
- * intentionally empty links. Replace them when sign-in and sign-up exist.
- */
-export const PLACEHOLDER_HREF = {
-  signIn: '#',
-  createAccount: '#',
-} as const;
-
 export const COPYRIGHT = '© 2026 The Blue Bridge';
 
 export const MOTTO = ['Connection', 'Community', 'Confluence'] as const;

@@ -1,7 +1,8 @@
 import { NavLink } from 'react-router';
 
 import { preloadRoute } from '../../app/routes';
-import { PLACEHOLDER_HREF } from '../../app/site';
+import { useAuth } from '../../features/auth/authContext';
+import { AUTH_PATHS } from '../../features/auth/paths';
 import { cn } from '../../lib/cn';
 
 const BASE =
@@ -33,11 +34,16 @@ export function NavItem({ to, label, className, onNavigate }: NavItemProps) {
   );
 }
 
-/** Placeholder: sign-in is out of scope for this phase. */
-export function SignInLink({ className }: { className?: string }) {
+/** "Sign in" for visitors, "Account" once signed in. */
+export function AccountLink({ className, onNavigate }: Omit<NavItemProps, 'to' | 'label'>) {
+  const { state } = useAuth();
+  const signedIn = state.status === 'signedIn';
   return (
-    <a href={PLACEHOLDER_HREF.signIn} className={cn(BASE, className)}>
-      Sign in
-    </a>
+    <NavItem
+      to={signedIn ? AUTH_PATHS.account : AUTH_PATHS.signIn}
+      label={signedIn ? 'Account' : 'Sign in'}
+      {...(className !== undefined && { className })}
+      {...(onNavigate !== undefined && { onNavigate })}
+    />
   );
 }

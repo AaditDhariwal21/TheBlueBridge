@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { NavigationType, useNavigationType, useSearchParams } from 'react-router';
 
+import { canWriteBlog } from '../features/auth/permissions';
 import { BlogComposer } from '../features/blogs/components/composer/BlogComposer';
 import {
   WriteBlogButton,
@@ -11,7 +12,9 @@ import { SegmentedTabs } from '../features/blogs/components/feed/SegmentedTabs';
 import { panelId, tabId } from '../features/blogs/components/feed/tabIds';
 import { QueryBlogList } from '../features/blogs/components/query/QueryBlogList';
 import { BlogsLayout } from '../features/blogs/components/shared/BlogsLayout';
+import { JoinPrompt } from '../features/blogs/components/shared/JoinPrompt';
 import type { BlogsTab } from '../features/blogs/lib/paths';
+import { useBlogActor } from '../features/blogs/state/viewer';
 import { MEDIA, useMediaQuery } from '../lib/useMediaQuery';
 
 const TABS = [
@@ -33,6 +36,7 @@ export function BlogsPage() {
   // The tab lives in the URL, so "back" from a blog returns to the same tab.
   const tab: BlogsTab = params.get('tab') === 'queries' ? 'queries' : 'feed';
   const [composerOpen, setComposerOpen] = useState(false);
+  const canWrite = canWriteBlog(useBlogActor());
   const navigationType = useNavigationType();
 
   // Back/forward into the feed: return to where the reader was.
@@ -86,7 +90,12 @@ export function BlogsPage() {
               Stories, lessons and practical advice from the women of Jodhpur.
             </p>
           </div>
-          {isDesktop && <WriteBlogButton onClick={openComposer} composerOpen={composerOpen} />}
+          {isDesktop &&
+            (canWrite ? (
+              <WriteBlogButton onClick={openComposer} composerOpen={composerOpen} />
+            ) : (
+              <JoinPrompt action="write a blog" variant="inline" />
+            ))}
         </header>
         <div
           aria-hidden="true"
@@ -96,7 +105,9 @@ export function BlogsPage() {
         {isDesktop ? (
           <div className="mt-8">
             <BlogFeed
-              emptyAction={<WriteBlogButton onClick={openComposer} composerOpen={composerOpen} />}
+              emptyAction={
+                canWrite && <WriteBlogButton onClick={openComposer} composerOpen={composerOpen} />
+              }
             />
           </div>
         ) : (
@@ -129,12 +140,14 @@ export function BlogsPage() {
               className="pt-4"
             >
               <p className="mb-4 text-sm text-text-muted">
-                Pinned topic spaces. Ask anything, and anyone can answer.
+                One per category. Any member asks; ambassadors answer.
               </p>
               <QueryBlogList headingLevel="h2" />
             </div>
 
-            {tab === 'feed' && <WriteBlogFab onClick={openComposer} composerOpen={composerOpen} />}
+            {tab === 'feed' && canWrite && (
+              <WriteBlogFab onClick={openComposer} composerOpen={composerOpen} />
+            )}
           </>
         )}
       </div>
