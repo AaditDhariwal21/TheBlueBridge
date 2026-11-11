@@ -122,9 +122,7 @@ against an allow-list (`server/src/lib/richText.ts`) and stores its plain text a
 
 ## Configuration
 
-- `client/.env`: **public** build settings only (`VITE_SITE_URL`). It is committed, and
-  everything in it ends up in the browser bundle.
-- `client/.env.local`: your Supabase URL and publishable key. Git-ignored. See
+- `client/.env.local`: your site URL, Supabase URL and publishable key (all public). Git-ignored. See
   `client/.env.example`.
 - `server/.env`: server settings and secrets. Git-ignored. Copy `server/.env.example` to
   start. Validated at boot: the server refuses to start with a missing or wrong value.

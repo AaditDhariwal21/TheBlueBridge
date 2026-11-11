@@ -6,8 +6,7 @@ coverage
 .vscode/*
 !.vscode/extensions.json
 
-# Server secrets. client/.env is intentionally committed: public build config only.
-# Per-developer client values (Supabase URL and publishable key) go in client/.env.local.
+# Real env files are never committed; only the *.env.example templates are.
 server/.env
 server/certs/
 .env.local

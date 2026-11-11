@@ -30,7 +30,6 @@ Where each value lives:
 | `server/.env.production.local` | prod        | no         | prod database settings, only for running migrations from your laptop |
 | Render → Environment           | prod        | no         | prod server settings and secrets                                     |
 | Vercel → Environment Variables | prod        | no         | prod public build settings                                           |
-| `client/.env`                  | both        | yes        | public defaults only (`VITE_SITE_URL`)                               |
 
 Never copy prod values into `server/.env` or `client/.env.local`.
 
