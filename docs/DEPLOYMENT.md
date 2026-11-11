@@ -17,9 +17,11 @@ server/.env, client/.env.local              Render + Vercel environment variable
 **Why the browser calls Render directly (CORS) instead of Vercel proxying `/api`:** behind a
 Vercel rewrite every request reaches Render from Vercel's servers, so all members would share
 Vercel's IP and the per-IP limits (e.g. 10 referral-code tries per 15 minutes) would apply to
-everyone at once. Calling Render directly keeps real client IPs (Render appends them; the API
-trusts exactly one proxy hop), avoids a second hop, and avoids Vercel's proxy timeouts while a
-Render instance wakes up.
+everyone at once. Calling Render directly keeps real client IPs, avoids a second hop, and avoids
+Vercel's proxy timeouts while a Render instance wakes up. Render sits behind Cloudflare, which
+puts the visitor's IP in `CF-Connecting-IP` (and rejects requests that try to set it
+themselves); the API reads it there (`CLIENT_IP_HEADER`). `X-Forwarded-For` is no use on Render:
+the chain of Render proxies in it has no fixed length.
 
 Where each value lives:
 
@@ -153,7 +155,7 @@ Site URL, and, if the API moves to its own domain, `connect-src` in `vercel.json
 | `NODE_VERSION`         | `22`                                                                             | no      |
 | `HOST`                 | `0.0.0.0`                                                                        | no      |
 | `LOG_LEVEL`            | `info`                                                                           | no      |
-| `TRUST_PROXY`          | `1`                                                                              | no      |
+| `CLIENT_IP_HEADER`     | `cf-connecting-ip` (the visitor's IP, for rate limits)                           | no      |
 | `CORS_ORIGINS`         | `https://<your-site>.vercel.app` (comma-separated if several, no trailing slash) | no      |
 | `DATABASE_URL`         | prod Session pooler string, password filled in, **no** `?sslmode`                | **yes** |
 | `DATABASE_POOL_MAX`    | `10`                                                                             | no      |
@@ -187,8 +189,11 @@ project. Leave `VITE_API_URL` and `CORS_ORIGINS` unset locally.
 
 - **Schema changes:** add a migration, apply it to dev (`db:migrate`), then to prod (Pre-Deploy
   Command, or `db:migrate:prod` before pushing).
-- **Client IPs:** `TRUST_PROXY=1` assumes Render adds one proxy hop. If rate limits ever lock
-  out unrelated people at once, the hop count is wrong; check Render's current guidance.
+- **Client IPs:** rate limits count by `CF-Connecting-IP` (`CLIENT_IP_HEADER`). Check it with
+  `curl -si https://<render>.onrender.com/api/health`: the `ratelimit-policy` header's `pk` must
+  stay the same across requests and must not change when you send a made-up `X-Forwarded-For`.
+  Leave `TRUST_PROXY` unset on Render. If the API ever moves off Cloudflare, unset
+  `CLIENT_IP_HEADER` and set `TRUST_PROXY` to the number of proxies in front instead.
 - **Scaling past one API instance:** rate limits are counted in memory; add a shared store first
   (`server/src/middleware/rateLimits.ts`).
 - **Approvals:** until the admin panel exists, use `approval-queue.sql` and `approve-user.sql` in

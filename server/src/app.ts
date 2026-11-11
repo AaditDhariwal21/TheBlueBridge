@@ -20,7 +20,10 @@ import { apiRateLimit, writeRateLimit } from './middleware/rateLimits.ts';
 import { requestContext } from './middleware/requestContext.ts';
 
 /** Everything the app needs from the outside, injected so tests can swap any of it. */
-export interface AppDeps extends Pick<ServerConfig, 'trustProxy' | 'corsOrigins'> {
+export interface AppDeps extends Pick<
+  ServerConfig,
+  'trustProxy' | 'clientIpHeader' | 'corsOrigins'
+> {
   logger: Logger;
   db: Db;
   identity: IdentityProvider;
@@ -64,7 +67,7 @@ function apiRouter(deps: AppDeps): Router {
     res.set('Cache-Control', 'no-store'); // responses carry personal data
     next();
   });
-  router.use(apiRateLimit());
+  router.use(apiRateLimit(deps.clientIpHeader));
 
   router.use(healthRoutes()); //                     GET  /health
   router.use(categoriesRoutes(deps)); //             GET  /categories

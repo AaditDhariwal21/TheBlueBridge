@@ -145,7 +145,7 @@ test/                 integration tests + support/ (test DB, fixtures, fakes, to
 - pino JSON logs via `req.log`. Log ids and codes, never bodies, headers, tokens, emails,
   names or phone numbers. Errors go through the safe serializer in `lib/logger.ts`.
 - helmet, CORS allowlist from `CORS_ORIGINS` (no credentials), `trust proxy` from
-  `TRUST_PROXY`, rate limits in `middleware/rateLimits.ts` (in-memory; needs a shared store
+  `TRUST_PROXY`, client IP for rate limits from `CLIENT_IP_HEADER` when set (Cloudflare), rate limits in `middleware/rateLimits.ts` (in-memory; needs a shared store
   before running more than one instance).
 
 ### Tests

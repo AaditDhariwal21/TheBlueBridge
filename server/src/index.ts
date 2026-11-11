@@ -37,6 +37,7 @@ if (pending.length > 0) {
 
 const app = createApp({
   trustProxy: config.trustProxy,
+  clientIpHeader: config.clientIpHeader,
   corsOrigins: config.corsOrigins,
   logger,
   db,

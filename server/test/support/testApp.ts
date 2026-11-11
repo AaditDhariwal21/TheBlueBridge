@@ -36,6 +36,7 @@ export async function startTestApp(deps: {
 }): Promise<TestApp> {
   const app = createApp({
     trustProxy: 0,
+    clientIpHeader: null,
     corsOrigins: [],
     logger: pino({ level: 'silent' }),
     db: deps.db,

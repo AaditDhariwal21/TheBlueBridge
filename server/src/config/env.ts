@@ -7,6 +7,9 @@ import { z } from 'zod';
  */
 
 const LOG_LEVELS = ['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'] as const;
+/** Headers a trusted edge sets to the visitor's IP, overwriting any value the client sent. */
+const CLIENT_IP_HEADERS = ['cf-connecting-ip'] as const;
+export type ClientIpHeader = (typeof CLIENT_IP_HEADERS)[number];
 
 const origin = z.url({ protocol: /^https?$/ }).refine((value) => new URL(value).origin === value, {
   error: 'Each origin must look like https://example.com (no path or trailing slash).',
@@ -50,6 +53,11 @@ const serverSchema = z
     LOG_LEVEL: z.enum(LOG_LEVELS).default('info'),
     /** Number of reverse proxies in front of the API (for client IPs and rate limits). */
     TRUST_PROXY: z.coerce.number().int().min(0).max(5).default(0),
+    /**
+     * Behind Cloudflare (Render is): read the visitor's IP from this header for rate limits,
+     * because the proxy chain in X-Forwarded-For has no fixed length there.
+     */
+    CLIENT_IP_HEADER: z.enum(CLIENT_IP_HEADERS).optional(),
     CORS_ORIGINS: z
       .string()
       .default('')
@@ -103,6 +111,7 @@ export interface ServerConfig {
   port: number;
   logLevel: (typeof LOG_LEVELS)[number];
   trustProxy: number;
+  clientIpHeader: ClientIpHeader | null;
   corsOrigins: string[];
   database: DatabaseConfig;
   supabase: { url: string; secretKey: string };
@@ -118,6 +127,7 @@ export function loadServerConfig(env: Env = process.env): ServerConfig {
     port: parsed.PORT,
     logLevel: parsed.LOG_LEVEL,
     trustProxy: parsed.TRUST_PROXY,
+    clientIpHeader: parsed.CLIENT_IP_HEADER ?? null,
     corsOrigins: parsed.CORS_ORIGINS,
     database: toDatabaseConfig(parsed),
     supabase: { url: parsed.SUPABASE_URL, secretKey: parsed.SUPABASE_SECRET_KEY },

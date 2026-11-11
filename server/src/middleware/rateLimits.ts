@@ -1,14 +1,35 @@
-import { rateLimit, type Options } from 'express-rate-limit';
+import { isIP } from 'node:net';
 
+import { ipKeyGenerator, rateLimit, type Options } from 'express-rate-limit';
+
+import type { ClientIpHeader } from '../config/env.ts';
 import { AppError } from '../lib/errors.ts';
 import { viewerOf } from './authenticate.ts';
 
 /**
  * Per-IP limits, counted in this process's memory. If the API ever runs as more
  * than one instance, give these a shared store (e.g. Redis) so limits hold
- * across instances. Client IPs are only correct when TRUST_PROXY matches the
- * number of proxies in front of the API.
+ * across instances.
  */
+
+interface IpSource {
+  ip?: string | undefined;
+  get(name: string): string | undefined;
+}
+
+/**
+ * The key per-IP limits count by. Behind Cloudflare the visitor's IP comes from
+ * `clientIpHeader` (Cloudflare overwrites it and rejects requests that try to set
+ * it); otherwise from req.ip, which follows TRUST_PROXY. IPv6 addresses are grouped
+ * by /56 so one household can't rotate through its whole range.
+ */
+export function clientIpKey(clientIpHeader: ClientIpHeader | null): (req: IpSource) => string {
+  return (req) => {
+    const fromEdge = clientIpHeader === null ? undefined : req.get(clientIpHeader)?.trim();
+    const ip = fromEdge !== undefined && isIP(fromEdge) !== 0 ? fromEdge : req.ip;
+    return ipKeyGenerator(ip ?? 'unknown');
+  };
+}
 
 const common: Partial<Options> = {
   standardHeaders: 'draft-8',
@@ -19,16 +40,26 @@ const common: Partial<Options> = {
 };
 
 /** Every API request: generous, just a flood guard. */
-export function apiRateLimit() {
-  return rateLimit({ ...common, windowMs: 60_000, limit: 300 });
+export function apiRateLimit(clientIpHeader: ClientIpHeader | null) {
+  return rateLimit({
+    ...common,
+    windowMs: 60_000,
+    limit: 300,
+    keyGenerator: clientIpKey(clientIpHeader),
+  });
 }
 
 /**
  * Anything that reveals whether a referral code works (validate and signup)
  * shares one tight budget, so codes cannot be guessed through either endpoint.
  */
-export function referralAttemptRateLimit() {
-  return rateLimit({ ...common, windowMs: 15 * 60_000, limit: 10 });
+export function referralAttemptRateLimit(clientIpHeader: ClientIpHeader | null) {
+  return rateLimit({
+    ...common,
+    windowMs: 15 * 60_000,
+    limit: 10,
+    keyGenerator: clientIpKey(clientIpHeader),
+  });
 }
 
 /**

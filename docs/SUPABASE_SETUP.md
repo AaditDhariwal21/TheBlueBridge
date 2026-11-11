@@ -186,6 +186,7 @@ matters later (password reset, for instance).
 | `HOST` / `PORT`        | `127.0.0.1` / `3001` locally; `0.0.0.0` in containers               | no      |
 | `LOG_LEVEL`            | `info`                                                              | no      |
 | `TRUST_PROXY`          | `0` locally; number of proxies in front in production (usually `1`) | no      |
+| `CLIENT_IP_HEADER`     | Unset locally; `cf-connecting-ip` behind Cloudflare (Render)        | no      |
 | `CORS_ORIGINS`         | Empty when site and API share an origin (default)                   | no      |
 | `DATABASE_URL`         | Session pooler string with the password                             | **yes** |
 | `DATABASE_POOL_MAX`    | `10`                                                                | no      |
