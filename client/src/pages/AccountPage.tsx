@@ -1,6 +1,9 @@
 import { Link, useNavigate } from 'react-router';
 
+import { Container } from '../components/layout/Container';
+import { Section } from '../components/layout/Section';
 import { Button } from '../components/ui/Button';
+import { Card } from '../components/ui/Card';
 import { buttonClasses } from '../components/ui/buttonClasses';
 import { useAuth } from '../features/auth/authContext';
 import { AccountSummary } from '../features/auth/components/AccountSummary';
@@ -77,41 +80,54 @@ export function AccountPage() {
     );
   }
 
+  // Approved: a two-column dashboard. Profile on the left (sticky on wide
+  // screens), the member's own blogs and comments on the right.
   return (
-    <AuthShell
-      eyebrow="Your account"
-      title={`Welcome, ${firstName}`}
-      intro={<p>{welcomeLine(me)}</p>}
-      after={
-        <>
-          <MyBlogs />
-          <MyComments />
-        </>
-      }
-    >
-      <div className="flex flex-col gap-6">
-        {me.referralCode && (
-          <section aria-labelledby="referral-code-title" className="border border-border p-4">
-            <h2 id="referral-code-title" className="font-sans text-sm text-text-muted">
-              Your referral code
-            </h2>
-            <p className="mt-1 font-display text-h3 tracking-caps select-all">
-              {formatReferralCode(me.referralCode)}
-            </p>
-            <p className="mt-2 text-xs text-text-muted">
-              Share it with women you’d like to invite. It works while your account is active.
-            </p>
-          </section>
-        )}
-        <AccountSummary me={me} roleLabel="Role" />
-        <div className="flex flex-wrap gap-3">
-          <Link to="/blogs" className={buttonClasses({ variant: 'outline' })}>
-            Go to the blogs
-          </Link>
-          {signOutButton}
+    <Section aria-labelledby="page-title" className="py-12 sm:py-16">
+      <Container>
+        <header>
+          <p className="text-xs tracking-caps text-text-muted uppercase">Your account</p>
+          <h1 id="page-title" className="mt-2 text-h1 tracking-tight motion-safe:animate-rise">
+            Welcome, {firstName}
+          </h1>
+          <p className="mt-3 text-text-muted">{welcomeLine(me)}</p>
+          <div
+            aria-hidden="true"
+            className="mt-6 h-px w-24 bg-linear-to-r from-accent-soft to-accent-2-soft"
+          />
+        </header>
+
+        <div className="mt-8 grid items-start gap-6 lg:grid-cols-12 lg:gap-8">
+          <Card accent="blue" className="flex flex-col gap-6 lg:sticky lg:top-24 lg:col-span-5">
+            {me.referralCode && (
+              <section aria-labelledby="referral-code-title" className="border border-border p-4">
+                <h2 id="referral-code-title" className="font-sans text-sm text-text-muted">
+                  Your referral code
+                </h2>
+                <p className="mt-1 font-display text-h3 tracking-caps select-all">
+                  {formatReferralCode(me.referralCode)}
+                </p>
+                <p className="mt-2 text-xs text-text-muted">
+                  Share it with women you’d like to invite. It works while your account is active.
+                </p>
+              </section>
+            )}
+            <AccountSummary me={me} roleLabel="Role" />
+            <div className="flex flex-wrap gap-3">
+              <Link to="/blogs" className={buttonClasses({ variant: 'outline' })}>
+                Go to the blogs
+              </Link>
+              {signOutButton}
+            </div>
+          </Card>
+
+          <div className="flex min-w-0 flex-col gap-6 lg:col-span-7">
+            <MyBlogs />
+            <MyComments />
+          </div>
         </div>
-      </div>
-    </AuthShell>
+      </Container>
+    </Section>
   );
 }
 

@@ -11,4 +11,5 @@ coverage
 server/.env
 server/certs/
 .env.local
+# Includes server/.env.production.local (prod database settings for db:migrate:prod).
 .env.*.local

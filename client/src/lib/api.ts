@@ -1,10 +1,14 @@
 /**
- * JSON client for our API. Always same-origin `/api/...`: Vite proxies it in
- * development and a reverse proxy does in production (see README).
+ * JSON client for our API.
+ * - Development: same-origin `/api/...`, which Vite proxies to the local server.
+ * - Production: `VITE_API_URL` is the API's origin (e.g. the Render service), called
+ *   directly with CORS; the API must list this site's origin in `CORS_ORIGINS`.
  *
  * Every API error has the shape { error: { code, message, requestId, fields? } }.
  * Network failures surface as code 'NETWORK' with status 0.
  */
+
+const API_BASE = `${(import.meta.env.VITE_API_URL ?? '').replace(/\/+$/, '')}/api`;
 
 export class ApiError extends Error {
   override readonly name = 'ApiError';
@@ -36,7 +40,7 @@ export async function apiRequest(path: string, options: RequestOptions = {}): Pr
 
   let response: Response;
   try {
-    response = await fetch(`/api${path}`, {
+    response = await fetch(`${API_BASE}${path}`, {
       method: options.method ?? 'GET',
       headers,
       ...(options.body !== undefined && { body: JSON.stringify(options.body) }),
@@ -68,4 +72,34 @@ function isStringRecord(value: unknown): value is Record<string, string> {
     value !== null &&
     Object.values(value).every((v) => typeof v === 'string')
   );
+}
+
+/**
+ * Failures that may succeed if tried again shortly: no network, timeouts, rate
+ * limits and server errors (e.g. the API restarting or waking up). Never 4xx
+ * answers like 401/403/404, which mean what they say.
+ */
+export function isTransient(error: unknown): boolean {
+  return (
+    error instanceof ApiError &&
+    (error.status === 0 || error.status === 408 || error.status === 429 || error.status >= 500)
+  );
+}
+
+/** Runs `task`, retrying transient failures after each delay in turn. Stops if aborted. */
+export async function retryTransient<T>(
+  task: () => Promise<T>,
+  delaysMs: readonly number[],
+  signal?: AbortSignal,
+): Promise<T> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await task();
+    } catch (error) {
+      const delay = delaysMs[attempt];
+      if (delay === undefined || !isTransient(error) || signal?.aborted) throw error;
+      await new Promise((resolve) => setTimeout(resolve, delay));
+      if (signal?.aborted) throw error;
+    }
+  }
 }

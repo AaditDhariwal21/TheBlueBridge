@@ -10,13 +10,11 @@ interface AuthShellProps {
   intro?: ReactNode;
   /** Shown under the card, e.g. "New here? Create an account". */
   footer?: ReactNode;
-  /** Further sections after the card (e.g. the account's activity). */
-  after?: ReactNode;
   children: ReactNode;
 }
 
 /** The shared frame for sign-in, sign-up and account pages: page h1, then one card. */
-export function AuthShell({ eyebrow, title, intro, footer, after, children }: AuthShellProps) {
+export function AuthShell({ eyebrow, title, intro, footer, children }: AuthShellProps) {
   return (
     <Section aria-labelledby="page-title" className="py-12 sm:py-section">
       <Container width="narrow">
@@ -35,7 +33,6 @@ export function AuthShell({ eyebrow, title, intro, footer, after, children }: Au
           {children}
         </Card>
         {footer && <div className="mt-6 text-center text-sm text-text-muted">{footer}</div>}
-        {after}
       </Container>
     </Section>
   );

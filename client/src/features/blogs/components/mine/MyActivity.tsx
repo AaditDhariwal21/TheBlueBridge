@@ -121,7 +121,7 @@ function ActivitySection<T>({ id, title, list, empty, renderItem }: ActivitySect
   const firstLoad = status === 'loading' && items.length === 0;
 
   return (
-    <Card className="mt-6">
+    <Card>
       <section aria-labelledby={`${id}-title`} aria-busy={status === 'loading' || undefined}>
         <h2 id={`${id}-title`} className="text-h3">
           {title}

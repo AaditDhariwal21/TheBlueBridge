@@ -33,7 +33,9 @@ simplest correct option; no speculative features, no dead code.
 - Accessibility: labels via `Field`, errors linked with `aria-describedby`, focus moved to
   the first invalid field on submit, `role="alert"` for errors, `aria-busy` while loading.
   Every data view has loading, empty and error states.
-- API calls go through `src/lib/api.ts` (same-origin `/api`, typed `ApiError`).
+- API calls go through `src/lib/api.ts` (typed `ApiError`; `retryTransient` for calls that
+  must survive a restarting API). Dev: same-origin `/api` via the Vite proxy. Prod: `VITE_API_URL`
+  (Render) with CORS; see `docs/DEPLOYMENT.md`.
 - Auth: `useAuth()` from `features/auth/authContext.ts`; mark a route `requiresAuth: true`
   to wrap it in `RequireAuth`. Show or hide controls with `features/auth/permissions.ts`, the
   client mirror of the server's policies (keep them in step). The API is what enforces them.

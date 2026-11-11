@@ -319,16 +319,8 @@ npm run dev                         # site on http://localhost:5180, API on :300
 
 ## Going to production
 
-- Use a separate production project in Mumbai, with the Pro plan for backups and
-  leaked-password protection.
-- Host env: `NODE_ENV=production`, `HOST=0.0.0.0`, `TRUST_PROXY=1` (or however many proxies
-  sit in front), `DATABASE_SSL_CA_PATH` set, secrets in the host's secret manager.
-- Serve the site and `/api` from one origin (reverse proxy) so CORS isn't needed. If the API
-  must be on another origin, list the site's origin in `CORS_ORIGINS`.
-- Run `npm run db:migrate -w server` against production before deploying code that needs a
-  new migration.
-- Rate limits are per process. Before running a second API instance, add a shared store
-  (see `server/src/middleware/rateLimits.ts`).
+Production uses a **separate** Supabase project. The full walkthrough (prod project, migrating
+it, Render, Vercel and every environment variable) is in [`DEPLOYMENT.md`](DEPLOYMENT.md).
 
 ## Troubleshooting
 

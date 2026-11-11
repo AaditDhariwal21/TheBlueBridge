@@ -73,6 +73,22 @@ const serverSchema = z
     if (env.NODE_ENV === 'production' && !env.SUPABASE_URL.startsWith('https://')) {
       ctx.addIssue({ code: 'custom', path: ['SUPABASE_URL'], message: 'Must be https.' });
     }
+    // In production the site (Vercel) calls the API (Render) from another origin.
+    if (env.NODE_ENV === 'production' && env.CORS_ORIGINS.length === 0) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['CORS_ORIGINS'],
+        message:
+          'Required in production: the site origin(s), e.g. https://the-blue-bridge.vercel.app.',
+      });
+    }
+    if (env.NODE_ENV === 'production' && env.CORS_ORIGINS.some((o) => !o.startsWith('https://'))) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['CORS_ORIGINS'],
+        message: 'Must be https in production.',
+      });
+    }
   });
 
 export interface DatabaseConfig {

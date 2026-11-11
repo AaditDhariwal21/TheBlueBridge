@@ -39,8 +39,8 @@ export function SignInPage() {
       {state.status === 'error' ? (
         <div role="alert" className="flex flex-col items-start gap-4">
           <p className="text-sm text-danger">
-            You’re signed in, but we couldn’t load your account. Check your connection and try
-            again.
+            You’re signed in, but the site couldn’t reach its server just now. It will keep trying;
+            you can also try again yourself.
           </p>
           <Button onClick={reload}>Try again</Button>
         </div>

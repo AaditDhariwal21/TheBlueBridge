@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 
-import { ApiError } from '../../lib/api';
+import { ApiError, retryTransient } from '../../lib/api';
 import { fetchMe } from './api';
 import {
   AuthContext,
@@ -11,6 +11,12 @@ import {
 import { authConfigured, getSupabase } from './supabase';
 import { getAccessToken } from './session';
 import type { Me } from './types';
+
+/**
+ * How long to keep retrying the profile when the API is briefly unreachable
+ * (dev server restarting, a deploy, a sleeping host waking up): ~30 s in total.
+ */
+const PROFILE_RETRY_DELAYS_MS = [1_000, 2_000, 4_000, 8_000, 15_000];
 
 type Profile =
   | { status: 'loading'; userId: string }
@@ -60,7 +66,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const token = await getAccessToken().catch(() => null);
       if (token === null) return;
       try {
-        const me = await fetchMe(token);
+        const me = await retryTransient(
+          () => fetchMe(token),
+          PROFILE_RETRY_DELAYS_MS,
+          stale.signal,
+        );
         if (!stale.signal.aborted) setProfile({ status: 'ready', userId, me });
       } catch (error) {
         if (stale.signal.aborted) return;
@@ -96,6 +106,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setProfile((current) => current && { status: 'loading', userId: current.userId });
     setReloadKey((key) => key + 1);
   }, []);
+
+  // Still failing after the retries: try again by itself when the tab comes back
+  // into view or the network returns, instead of waiting for a click.
+  const profileFailed = profile?.status === 'error';
+  useEffect(() => {
+    if (!profileFailed) return;
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') reload();
+    };
+    window.addEventListener('online', reload);
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      window.removeEventListener('online', reload);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [profileFailed, reload]);
 
   const state = useMemo((): AuthState => {
     if (!authConfigured) return { status: 'signedOut', notice: 'notConfigured' };

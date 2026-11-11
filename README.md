@@ -38,32 +38,33 @@ server at runtime. `npm run typecheck` is what checks the types.
 
 ## All commands (run from the repo root)
 
-| Command                           | What it does                                                                        |
-| --------------------------------- | ----------------------------------------------------------------------------------- |
-| `npm run dev`                     | Client and server dev servers together                                              |
-| `npm run check`                   | Typecheck, lint and format-check everything, then build                             |
-| `npm run build`                   | Production build of the client into `client/dist/`, plus a type check of the server |
-| `npm run typecheck`               | TypeScript check of both workspaces                                                 |
-| `npm run lint` / `npm run format` | ESLint / Prettier across the repo                                                   |
-| `npm test`                        | Server unit tests (permission policies, referral codes). No database needed         |
-| `npm run test:db:up -w server`    | Start the disposable Postgres for integration tests (Docker)                        |
-| `npm run test:integration`        | Server integration tests (signup, auth, constraints, RLS) against that Postgres     |
-| `npm run test:db:down -w server`  | Stop and discard the test Postgres                                                  |
-| `npm run db:migrate -w server`    | Apply pending SQL migrations to `DATABASE_URL`                                      |
-| `npm run db:seed -w server`       | Insert the five categories and their colours (safe to repeat)                       |
-| `npm run preview -w client`       | Serve the built client locally (proxies `/api`)                                     |
-| `npm run start -w server`         | Run the API in production mode                                                      |
-| `npm run images -w client`        | Regenerate responsive images from `client/src/assets/source/`                       |
+| Command                                              | What it does                                                                        |
+| ---------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| `npm run dev`                                        | Client and server dev servers together                                              |
+| `npm run check`                                      | Typecheck, lint and format-check everything, then build                             |
+| `npm run build`                                      | Production build of the client into `client/dist/`, plus a type check of the server |
+| `npm run typecheck`                                  | TypeScript check of both workspaces                                                 |
+| `npm run lint` / `npm run format`                    | ESLint / Prettier across the repo                                                   |
+| `npm test`                                           | Server unit tests (permission policies, referral codes). No database needed         |
+| `npm run test:db:up -w server`                       | Start the disposable Postgres for integration tests (Docker)                        |
+| `npm run test:integration`                           | Server integration tests (signup, auth, constraints, RLS) against that Postgres     |
+| `npm run test:db:down -w server`                     | Stop and discard the test Postgres                                                  |
+| `npm run db:migrate -w server`                       | Apply pending SQL migrations to `DATABASE_URL`                                      |
+| `npm run db:seed -w server`                          | Insert the five categories and their colours (safe to repeat)                       |
+| `npm run db:migrate:prod -w server` / `db:seed:prod` | The same against PROD, using `server/.env.production.local`                         |
+| `npm run preview -w client`                          | Serve the built client locally (proxies `/api`)                                     |
+| `npm run start -w server`                            | Run the API in production mode                                                      |
+| `npm run images -w client`                           | Regenerate responsive images from `client/src/assets/source/`                       |
 
 Add a dependency to one side with `npm install <pkg> -w client` (or `-w server`).
 Ask first (see [`CLAUDE.md`](CLAUDE.md)).
 
 ## How client and server talk
 
-The client always calls same-origin `/api/...`. In development, Vite proxies `/api` to the
-server (`client/vite.config.ts`). In production, put both behind one origin using a
-reverse proxy or host rewrites, so no CORS setup is needed (`CORS_ORIGINS` exists for the
-case where the API must live on another origin).
+In development the client calls same-origin `/api/...` and Vite proxies it to the server
+(`client/vite.config.ts`). In production the site (Vercel) calls the API (Render) directly:
+`VITE_API_URL` points the client at the API, and the API allows the site's origin through
+`CORS_ORIGINS`. See [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
 
 Sign-in happens in the browser with supabase-js. Every API call that needs a user sends
 the Supabase access token as `Authorization: Bearer <token>`; the server verifies it
@@ -130,11 +131,11 @@ against an allow-list (`server/src/lib/richText.ts`) and stores its plain text a
 
 ## Deployment notes
 
-- Set `NODE_ENV=production`, `TRUST_PROXY` (number of proxies in front of the API) and
-  `DATABASE_SSL_CA_PATH` on the server. See `docs/SUPABASE_SETUP.md`, "Going to production".
-- Rate limits are counted in process memory. Before running more than one API instance,
-  give `server/src/middleware/rateLimits.ts` a shared store (e.g. Redis).
-- The client is a single-page app: the host must rewrite unknown paths to `/index.html`.
+Dev and prod are separate Supabase projects: local development always uses dev, the
+deployed site always uses prod. Step-by-step guide and every environment variable for
+Render and Vercel: [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
+
+- `vercel.json` configures the site's build, SPA rewrite, asset caching and security headers.
 - The static `index.html` carries the Home page's meta tags, so link previews for other
   pages show Home's details until prerendering is added. Head management is centralized in
   `client/src/app/head.ts` to make that switch easy.
