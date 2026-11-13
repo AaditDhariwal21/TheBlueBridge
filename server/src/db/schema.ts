@@ -1,4 +1,4 @@
-import type { ColumnType, Generated, Kysely } from 'kysely';
+import type { ColumnType, Generated, GeneratedAlways, Kysely } from 'kysely';
 
 import type { RichDoc } from '../lib/richText.ts';
 
@@ -22,6 +22,17 @@ export const USER_STATUSES = [
   'suspended',
 ] as const satisfies UserStatus[];
 
+/** What the admin action log records (admin_action_logs_action_check). */
+export type AdminAction =
+  'member_approved' | 'ambassador_approved' | 'query_blog_created' | 'query_blog_deleted';
+export const ADMIN_ACTIONS = [
+  'member_approved',
+  'ambassador_approved',
+  'query_blog_created',
+  'query_blog_deleted',
+] as const satisfies AdminAction[];
+export type AdminTargetType = 'user' | 'blog';
+
 export interface CategoriesTable {
   cat_id: Generated<string>;
   cat_name: string;
@@ -41,6 +52,8 @@ export interface UsersTable {
   reviewed_at: Date | null;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
+  /** 0 admin, 1 ambassador, 2 member: the member directory's order (0008). */
+  role_rank: GeneratedAlways<number>;
 }
 
 export interface ReferralCodesTable {
@@ -63,6 +76,8 @@ export interface BlogsTable {
   updated_at: Generated<Date>;
   deleted_at: Date | null;
   deleted_by: string | null;
+  /** tsvector of title (weight A) and body (B), for Feed search (0009). Read as text. */
+  search_vector: GeneratedAlways<string>;
 }
 
 export interface CommentsTable {
@@ -87,6 +102,31 @@ export interface UserCategoriesTable {
   cat_id: string;
 }
 
+/** Append-only (0007): every column is insert-only, so an update does not type-check. */
+type InsertOnly<T> = ColumnType<T, T, never>;
+
+export interface AdminActionLogsTable {
+  log_id: ColumnType<string, string | undefined, never>;
+  admin_id: InsertOnly<string>;
+  action: InsertOnly<AdminAction>;
+  target_type: InsertOnly<AdminTargetType>;
+  /** A plain id, deliberately not a foreign key (see the migration). */
+  target_id: InsertOnly<string>;
+  /** The target's name or title when the action happened. */
+  target_label: InsertOnly<string>;
+  reason: InsertOnly<string | null>;
+  created_at: ColumnType<Date, Date | undefined, never>;
+}
+
+/**
+ * Supabase Auth's users (schema auth), read-only. The API reads email from here to show
+ * profiles and never copies it into public.
+ */
+export interface AuthUsersTable {
+  id: ColumnType<string, never, never>;
+  email: ColumnType<string | null, never, never>;
+}
+
 export interface Database {
   categories: CategoriesTable;
   users: UsersTable;
@@ -95,6 +135,8 @@ export interface Database {
   comments: CommentsTable;
   blogs_categories: BlogsCategoriesTable;
   user_categories: UserCategoriesTable;
+  admin_action_logs: AdminActionLogsTable;
+  'auth.users': AuthUsersTable;
 }
 
 /** A connection or an open transaction; repositories accept either. */

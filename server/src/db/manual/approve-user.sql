@@ -1,5 +1,6 @@
--- Approve one pending applicant. Run in the Supabase SQL Editor until the admin
--- panel exists. See docs/SUPABASE_SETUP.md, step 9.
+-- Approve one pending applicant. EMERGENCY FALLBACK ONLY: approve in the admin panel
+-- (/adminpanel), which records the approval in the admin action log. An approval made with
+-- this script is NOT logged. See docs/SUPABASE_SETUP.md, step 9.
 --
 -- The role stays what they applied for (member or ambassador). reviewed_by is the
 -- approving admin, who must be an approved admin. Takes effect on the applicant's

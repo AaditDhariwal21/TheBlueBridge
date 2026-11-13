@@ -16,8 +16,8 @@ export interface TestResponse<T> {
 export interface TestApp {
   get<T = ErrorBody>(path: string, token?: string): Promise<TestResponse<T>>;
   post<T = ErrorBody>(path: string, body: unknown, token?: string): Promise<TestResponse<T>>;
-  /** DELETE; the body is null for 204 No Content. */
-  del<T = ErrorBody | null>(path: string, token?: string): Promise<TestResponse<T>>;
+  /** DELETE, with an optional JSON body; the response body is null for 204 No Content. */
+  del<T = ErrorBody | null>(path: string, token?: string, body?: unknown): Promise<TestResponse<T>>;
   close(): Promise<void>;
 }
 
@@ -74,8 +74,8 @@ export async function startTestApp(deps: {
       (await request('GET', path, undefined, token)) as TestResponse<T>,
     post: async <T>(path: string, body: unknown, token?: string) =>
       (await request('POST', path, body, token)) as TestResponse<T>,
-    del: async <T>(path: string, token?: string) =>
-      (await request('DELETE', path, undefined, token)) as TestResponse<T>,
+    del: async <T>(path: string, token?: string, body?: unknown) =>
+      (await request('DELETE', path, body, token)) as TestResponse<T>,
     close: () =>
       new Promise<void>((resolve, reject) => {
         server.close((error) => {

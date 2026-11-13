@@ -3,9 +3,6 @@ import { sql } from 'kysely';
 import type { Db } from '../../db/schema.ts';
 import { keysetBefore, type Cursor } from '../../lib/cursor.ts';
 
-/** Whose referrals to read: one referrer's, or everyone who was referred (admins). */
-export type ReferralScope = { kind: 'all' } | { kind: 'referrer'; userId: string };
-
 /**
  * The code's id if it exists and its owner is approved. With `lockOwner`, the
  * owner row is share-locked until the transaction ends, so a concurrent status
@@ -38,23 +35,26 @@ export async function insertCode(db: Db, userId: string, code: string): Promise<
   return row !== undefined;
 }
 
-/** users joined to the code they signed up with and that code's owner. */
-function referredUsers(db: Db, scope: ReferralScope) {
-  const query = db
+/**
+ * The users who signed up with one referrer's code, joined to that referrer. The code is
+ * found by its owner (referral_codes_user_id_key), its users by users_referral_code_idx.
+ */
+function referredUsers(db: Db, referrerId: string) {
+  return db
     .selectFrom('users as u')
     .innerJoin('referral_codes as rc', 'rc.referral_code_id', 'u.referral_code_id')
-    .innerJoin('users as referrer', 'referrer.user_id', 'rc.user_id');
-  return scope.kind === 'referrer' ? query.where('rc.user_id', '=', scope.userId) : query;
+    .innerJoin('users as referrer', 'referrer.user_id', 'rc.user_id')
+    .where('rc.user_id', '=', referrerId);
 }
 
 /** Newest first. Fetches limit + 1 rows so the caller can tell if there is a next page. */
 export function selectReferredUsers(
   db: Db,
-  scope: ReferralScope,
+  referrerId: string,
   page: { limit: number; cursor?: Cursor | undefined },
 ) {
   const { cursor } = page;
-  const scoped = referredUsers(db, scope);
+  const scoped = referredUsers(db, referrerId);
   const query =
     cursor === undefined ? scoped : scoped.where(keysetBefore('u.created_at', 'u.user_id', cursor));
   return query
@@ -77,8 +77,8 @@ export function selectReferredUsers(
 }
 
 /** One row per (status, role) combination that occurs. */
-export function countReferredUsers(db: Db, scope: ReferralScope) {
-  return referredUsers(db, scope)
+export function countReferredUsers(db: Db, referrerId: string) {
+  return referredUsers(db, referrerId)
     .select(['u.status', 'u.role', sql<number>`count(*)::int`.as('count')])
     .groupBy(['u.status', 'u.role'])
     .execute();

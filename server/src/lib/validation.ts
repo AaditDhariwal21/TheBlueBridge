@@ -26,6 +26,21 @@ export function multilineText(min: number, max: number, required: string) {
   return lengthChecked(normalizeMultiline, min, max, required);
 }
 
+/**
+ * Optional normalized single-line text of at most `max` characters. Missing, null, empty
+ * and whitespace-only all mean "none" (null).
+ */
+export function optionalSingleLineText(max: number) {
+  return z
+    .string({ error: 'Must be text.' })
+    .transform(normalizeSingleLine)
+    .pipe(
+      z.string().max(max, { error: `Keep this under ${max.toLocaleString('en-IN')} characters.` }),
+    )
+    .nullish()
+    .transform((value) => (value === '' ? null : (value ?? null)));
+}
+
 function lengthChecked(
   normalize: (value: string) => string,
   min: number,

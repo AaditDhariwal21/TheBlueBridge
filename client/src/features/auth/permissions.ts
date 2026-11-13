@@ -39,14 +39,35 @@ export function canReplyUnderQuery(
   return actor.id === query.authorId || hasCategoryPower(actor, [query.categoryId]);
 }
 
-/** Remove a blog, comment or query on a blog tagged with these categories. */
+/**
+ * Remove a discussion blog, or a comment or query on a blog tagged with these categories.
+ * A whole Query Blog needs canDeleteQueryBlog.
+ */
 export function canModerate(actor: Actor | null, categoryIds: readonly string[]): boolean {
   return isApproved(actor) && hasCategoryPower(actor, categoryIds);
 }
 
+/** The admin panel (/adminpanel): approved admins only. */
+export function canUseAdminPanel(actor: Pick<Actor, 'role' | 'status'> | null): boolean {
+  return actor?.status === 'approved' && actor.role === 'admin';
+}
+
 /** Start a category's Query Blog (one per category). Admins only. */
 export function canCreateQueryBlog(actor: Actor | null): boolean {
-  return isApproved(actor) && actor.role === 'admin';
+  return canUseAdminPanel(actor);
+}
+
+/** Remove a whole Query Blog. Admins only; ambassadors moderate inside it. */
+export function canDeleteQueryBlog(actor: Actor | null): boolean {
+  return canUseAdminPanel(actor);
+}
+
+/** Approve an application: an admin, for a pending member or ambassador. */
+export function canApproveMember(
+  actor: Pick<Actor, 'role' | 'status'> | null,
+  applicant: { readonly role: Role; readonly status: Status },
+): boolean {
+  return canUseAdminPanel(actor) && applicant.status === 'pending' && applicant.role !== 'admin';
 }
 
 /** Admins everywhere; ambassadors where any of the categories is one of their own. */

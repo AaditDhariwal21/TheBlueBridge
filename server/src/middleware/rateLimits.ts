@@ -74,3 +74,31 @@ export function writeRateLimit() {
     keyGenerator: (req) => 'user:' + viewerOf(req).id,
   });
 }
+
+/**
+ * The admin panel, counted per admin: tighter than the general limit, enough for
+ * search-as-you-type over the member list. Mount after requireAuth.
+ */
+export function adminRateLimit() {
+  return rateLimit({
+    ...common,
+    windowMs: 60_000,
+    limit: 60,
+    keyGenerator: (req) => 'admin:' + viewerOf(req).id,
+  });
+}
+
+/**
+ * Search-as-you-type and filtering on a list (the Feed, the member directory). Typing sends a
+ * request per pause, so each list gets its own per-IP budget, counted only for requests that
+ * carry one of `params`; plain paging is not counted here.
+ */
+export function searchRateLimit(clientIpHeader: ClientIpHeader | null, params: readonly string[]) {
+  return rateLimit({
+    ...common,
+    windowMs: 60_000,
+    limit: 60,
+    keyGenerator: clientIpKey(clientIpHeader),
+    skip: (req) => params.every((param) => req.query[param] === undefined),
+  });
+}

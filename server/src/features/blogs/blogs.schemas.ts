@@ -1,7 +1,9 @@
 import { z } from 'zod';
 
-import { cursorParam } from '../../lib/cursor.ts';
+import { cursorCodec, cursorParam, pgTimestamp, type Cursor } from '../../lib/cursor.ts';
 import { parseRichDoc, toPlainText, type RichDoc } from '../../lib/richText.ts';
+import { toPrefixTsQuery } from '../../lib/searchQuery.ts';
+import { normalizeSingleLine } from '../../lib/text.ts';
 import { multilineText, singleLineText } from '../../lib/validation.ts';
 
 /** Input limits. The client mirrors these (client/src/features/blogs/model/validation.ts). */
@@ -17,11 +19,80 @@ export const BLOG_LIMITS = {
   queryDescriptionMax: 500,
 } as const;
 
-/** GET /blogs and GET /me/blogs, /me/comments. */
+/** GET /me/blogs and /me/comments. */
 export const listFeedQuery = z.strictObject({
   limit: z.coerce.number().int().min(1).max(50).default(10),
   cursor: cursorParam.optional(),
 });
+
+/** Feed search limits. The client mirrors these (client/src/features/blogs/model/validation.ts). */
+export const FEED_SEARCH_LIMITS = { queryMin: 2, queryMax: 100, maxCategories: 10 } as const;
+
+/** A search result's sort key: relevance (numeric text, exact), then created_at and id. */
+export const searchCursor = cursorCodec(
+  z.strictObject({ r: z.string().regex(/^\d{1,9}(\.\d{1,6})?$/), t: pgTimestamp, id: z.uuid() }),
+);
+export type SearchCursor = z.output<typeof searchCursor.param>;
+
+/**
+ * What GET /blogs asks for. Without q the Feed is newest first, exactly as before; with q
+ * it is ranked by relevance. `categoryIds` (any of them) narrows either.
+ * A query with nothing searchable in it (`tsquery: null`) matches nothing.
+ */
+export type FeedRequest = { limit: number; categoryIds: string[] } & (
+  | { order: 'latest'; cursor: Cursor | null }
+  | { order: 'relevance'; tsquery: string | null; cursor: SearchCursor | null }
+);
+
+/** GET /blogs?limit&cursor&q&categories (comma-separated category ids). */
+export const feedQuery = z
+  .strictObject({
+    limit: z.coerce.number().int().min(1).max(50).default(10),
+    cursor: z.string().max(600).optional(),
+    q: z
+      .string()
+      .transform(normalizeSingleLine)
+      .pipe(
+        z
+          .string()
+          .min(FEED_SEARCH_LIMITS.queryMin, {
+            error: `Type at least ${FEED_SEARCH_LIMITS.queryMin} characters.`,
+          })
+          .max(FEED_SEARCH_LIMITS.queryMax, {
+            error: `Keep the search under ${FEED_SEARCH_LIMITS.queryMax} characters.`,
+          }),
+      )
+      .optional(),
+    categories: z
+      .string()
+      .max(1_000)
+      .transform((value) => [...new Set(value.split(',').filter(Boolean))])
+      .pipe(
+        z
+          .array(z.uuid({ error: 'Choose categories from the list.' }))
+          .min(1, { error: 'Choose at least one category.' })
+          .max(FEED_SEARCH_LIMITS.maxCategories, { error: 'Choose fewer categories.' }),
+      )
+      .optional(),
+  })
+  .transform((input, ctx): FeedRequest => {
+    const base = { limit: input.limit, categoryIds: input.categories ?? [] };
+    const invalidCursor = () => {
+      ctx.addIssue({ code: 'custom', path: ['cursor'], message: 'Invalid cursor.' });
+      return z.NEVER;
+    };
+    if (input.q === undefined) {
+      if (input.cursor === undefined) return { ...base, order: 'latest', cursor: null };
+      const cursor = cursorParam.safeParse(input.cursor);
+      return cursor.success ? { ...base, order: 'latest', cursor: cursor.data } : invalidCursor();
+    }
+    const tsquery = toPrefixTsQuery(input.q);
+    if (input.cursor === undefined) return { ...base, order: 'relevance', tsquery, cursor: null };
+    const cursor = searchCursor.param.safeParse(input.cursor);
+    return cursor.success
+      ? { ...base, order: 'relevance', tsquery, cursor: cursor.data }
+      : invalidCursor();
+  });
 
 /**
  * The editor's document: sanitized against the allow-list, then measured by its

@@ -3,15 +3,17 @@ import type { RequestHandler } from 'express';
 import type { Db } from '../../db/schema.ts';
 import { parseInput } from '../../lib/validation.ts';
 import { viewerOf } from '../../middleware/authenticate.ts';
-import { createBlogBody, createQueryBlogBody, listFeedQuery } from './blogs.schemas.ts';
+import { adminReasonBody } from '../adminLog/adminLog.schemas.ts';
+import { createBlogBody, createQueryBlogBody, feedQuery, listFeedQuery } from './blogs.schemas.ts';
 import {
   createBlog,
   createQueryBlog,
   deleteBlog,
+  deleteQueryBlog,
   getBlog,
   getQueryBlog,
   listFeed,
-  listMyBlogs,
+  listAuthorBlogs,
   listQueryBlogs,
 } from './blogs.service.ts';
 
@@ -22,7 +24,7 @@ type ById = RequestHandler<{ blogId: string }>;
 
 export function listFeedHandler({ db }: Deps): RequestHandler {
   return async (req, res) => {
-    res.json(await listFeed(db, parseInput(listFeedQuery, req.query)));
+    res.json(await listFeed(db, parseInput(feedQuery, req.query)));
   };
 }
 
@@ -65,8 +67,24 @@ export function createQueryBlogHandler({ db }: Deps): RequestHandler {
   };
 }
 
+/** Admins: body `{ reason? }`, recorded in the admin action log. */
+export function deleteQueryBlogHandler({ db }: Deps): ById {
+  return async (req, res) => {
+    const reason = parseInput(adminReasonBody, req.body);
+    await deleteQueryBlog(db, viewerOf(req), req.params.blogId, reason);
+    res.status(204).end();
+  };
+}
+
 export function listMyBlogsHandler({ db }: Deps): RequestHandler {
   return async (req, res) => {
-    res.json(await listMyBlogs(db, viewerOf(req), parseInput(listFeedQuery, req.query)));
+    res.json(await listAuthorBlogs(db, viewerOf(req).id, parseInput(listFeedQuery, req.query)));
+  };
+}
+
+/** A member's blogs, shown on their profile. */
+export function listMemberBlogsHandler({ db }: Deps): RequestHandler<{ userId: string }> {
+  return async (req, res) => {
+    res.json(await listAuthorBlogs(db, req.params.userId, parseInput(listFeedQuery, req.query)));
   };
 }

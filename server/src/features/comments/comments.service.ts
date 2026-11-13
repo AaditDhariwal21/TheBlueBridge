@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 import type { BlogType, Db } from '../../db/schema.ts';
-import { paginate, type Cursor } from '../../lib/cursor.ts';
+import { encodeCursor, paginate, type Cursor } from '../../lib/cursor.ts';
 import { AppError } from '../../lib/errors.ts';
 import type { Viewer } from '../../middleware/authenticate.ts';
 import {
@@ -48,17 +48,20 @@ export interface MyCommentDto {
 
 const commentId = z.uuid();
 
-/** The viewer's live comments, queries and replies, newest first. */
-export async function listMyComments(
+/**
+ * One author's live comments, queries and replies on live blogs, newest first: the viewer's
+ * own (GET /me/comments) or a member's, from their profile (GET /members/:id/comments).
+ */
+export async function listAuthorComments(
   db: Db,
-  viewer: Viewer,
+  authorId: string,
   page: { limit: number; cursor?: Cursor | undefined },
 ): Promise<{ comments: MyCommentDto[]; nextCursor: string | null }> {
-  const rows = await selectAuthorComments(db, viewer.id, page);
-  const { items, nextCursor } = paginate(rows, page.limit, (row) => ({
-    createdAt: row.created_at_key,
-    id: row.comment_id,
-  }));
+  if (!commentId.safeParse(authorId).success) throw new AppError('NOT_FOUND', 'Member not found.');
+  const rows = await selectAuthorComments(db, authorId, page);
+  const { items, nextCursor } = paginate(rows, page.limit, (row) =>
+    encodeCursor({ createdAt: row.created_at_key, id: row.comment_id }),
+  );
   return {
     comments: items.map((row) => ({
       id: row.comment_id,

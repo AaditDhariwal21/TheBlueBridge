@@ -18,7 +18,7 @@ import {
 } from '../../model/validation';
 import { useCreateBlog } from '../../state/hooks';
 import { useViewerAuthor } from '../../state/viewer';
-import { Avatar } from '../shared/Avatar';
+import { Avatar } from '../../../../components/ui/Avatar';
 import { CategoryChoice } from '../shared/CategoryChoice';
 import { CharacterCount } from '../shared/CharacterCount';
 import { CloseIcon } from '../shared/Icons';

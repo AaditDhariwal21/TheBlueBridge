@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 
 import { cn } from '../../../../lib/cn';
 import type { User } from '../../model/types';
-import { Avatar, type AvatarSize } from './Avatar';
+import { Avatar, type AvatarSize } from '../../../../components/ui/Avatar';
 import { RelativeTime } from './RelativeTime';
 
 interface AuthorBylineProps {

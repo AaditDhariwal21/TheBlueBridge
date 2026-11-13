@@ -116,8 +116,14 @@ test/                 integration tests + support/ (test DB, fixtures, fakes, to
   that need an approved account.
 - Every authorization question goes through `src/policies/permissions.ts`. Only `approved`
   accounts have role powers; ambassadors are scoped to their own categories; admins are not,
-  and only admins start Query Blogs. Add a
-  new rule there, with unit tests, before using it in a route.
+  and only admins start or remove Query Blogs. Add a new rule there, with unit tests, before
+  using it in a route.
+- Everything under `/api/admin` runs `requireAuth`, the per-admin `adminRateLimit` and
+  `requireAdmin` (`features/admin/admin.routes.ts`). Each admin action writes its entry with
+  `logAdminAction` (`features/adminLog`) inside the action's own transaction; the log is
+  append-only in the database.
+- Another member's profile is serialized only by `toPublicProfile`
+  (`features/members/members.service.ts`); restrict profile fields there.
 
 ### Database
 
@@ -136,7 +142,10 @@ test/                 integration tests + support/ (test DB, fixtures, fakes, to
   and a `constraint` name so tests and services can match on them.
 - References to `users` never cascade. Deleting a blog cascades to its comments and links.
   Categories are restricted while in use.
-- Indexes: only those with a named query in a comment. The list is in `0003_indexes.sql`.
+- Indexes: only those with a named query in a comment. The list starts in `0003_indexes.sql`
+  and continues, numbered, in later migrations (see `docs/DATABASE.md`).
+- Every migration from 0007 on has a down script in `src/db/migrations/down/` (run by hand;
+  `test/integration/migrations.test.ts` proves it reverts cleanly).
 - Email lives only in Supabase Auth (`auth.users`); never copy it into `public`.
 - Derived facts (code validity, referral counts) are computed by queries, never stored.
 

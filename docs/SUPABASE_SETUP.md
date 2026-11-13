@@ -238,8 +238,8 @@ category can't be deleted while a blog or ambassador uses it.
 
 ## 8. Create the first admin
 
-There's no admin panel yet, and nobody can sign up without a referral code, so the first
-admin (the "root") is created by hand.
+Nobody can sign up without a referral code, so the first admin (the "root") is created by
+hand. Every later approval happens in the admin panel (step 9).
 
 1. **Authentication → Users → Add user → Create new user.** Enter your email and a strong
    password (10+ characters), tick **Auto Confirm User**, then **Create user**.
@@ -259,19 +259,21 @@ is needed.
 
 ---
 
-## 9. Approve applicants (until the admin panel exists)
+## 9. Approve applicants
 
-In the **SQL Editor**:
-
-1. See who's waiting: run [`server/src/db/manual/approval-queue.sql`](../server/src/db/manual/approval-queue.sql)
-   (email, name, occupation, applied role, categories, who referred them; oldest first).
-2. Approve one: paste [`server/src/db/manual/approve-user.sql`](../server/src/db/manual/approve-user.sql),
-   set the applicant's email and **your** (admin) email, and run it. It sets
-   `status = 'approved'`, `reviewed_by` = you, `reviewed_at` = now. The role stays what
-   they applied for (member or ambassador, with their categories).
+Sign in as an admin, open **Account → Go to Admin Panel** (`/adminpanel`), then
+**Overview → Review applications**. Open an applicant, check their details and who invited
+them, and press **Approve** (optionally with a short note). The approval sets
+`status = 'approved'`, `reviewed_by` = you and `reviewed_at` = now, and is recorded in the
+panel's **Activity log** in the same transaction. The role stays what they applied for
+(member or ambassador, with their categories).
 
 The change applies on the applicant's next request. On the account page, **Check again**
 picks it up. Their own referral code starts working at the same moment.
+
+The SQL scripts [`approval-queue.sql`](../server/src/db/manual/approval-queue.sql) and
+[`approve-user.sql`](../server/src/db/manual/approve-user.sql) still work as an emergency
+fallback, but an approval made that way bypasses the API and is **not** in the activity log.
 
 Rejection and suspension flows aren't built. In an emergency you can suspend someone with
 `update public.users set status = 'suspended' where user_id = '…';`, which cuts off their

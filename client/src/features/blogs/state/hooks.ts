@@ -1,5 +1,6 @@
 import { useCallback, useContext, useEffect, useMemo } from 'react';
 
+import { usePagedList, type PagedList } from '../../../lib/usePagedList';
 import { blogsApi } from '../api';
 import { subjectFromKey, subjectKey } from '../lib/subject';
 import type {
@@ -77,6 +78,29 @@ export function useFeed(): FeedResult {
     loadMore,
     markHighlightSeen,
   };
+}
+
+/**
+ * The Feed searched and/or filtered by category (not cached: results follow the input).
+ * Changing the search cancels the request in flight, so a slow answer for an older search
+ * never replaces a newer one.
+ */
+export function useFeedSearch(q: string, categoryIds: readonly string[]): PagedList<Blog> {
+  const categories = [...categoryIds].sort().join(',');
+  const fetchPage = useCallback(
+    (cursor: string | null, signal: AbortSignal) =>
+      blogsApi.listBlogs(
+        {
+          cursor,
+          limit: FEED_PAGE_SIZE,
+          ...(q && { q }),
+          ...(categories && { categoryIds: categories.split(',') }),
+        },
+        signal,
+      ),
+    [q, categories],
+  );
+  return usePagedList(fetchPage);
 }
 
 export function useCreateBlog(): (input: NewBlogInput) => Promise<Blog> {
@@ -261,7 +285,7 @@ export function useQueryBlog(id: string): ItemResult<QueryBlog> {
   return { data, status: data ? 'ready' : (stored ?? 'loading'), retry: load };
 }
 
-/** Ambassadors (own categories) and admins. Rejects on failure, e.g. 409 if the category has one. */
+/** Admins. Rejects on failure, e.g. 409 if the category has one. */
 export function useCreateQueryBlog(): (input: NewQueryBlogInput) => Promise<QueryBlog> {
   const { dispatch } = useBlogsStore();
   return useCallback(
@@ -274,12 +298,12 @@ export function useCreateQueryBlog(): (input: NewQueryBlogInput) => Promise<Quer
   );
 }
 
-/** Moderators: removes a Query Blog (its category can then get a new one). */
-export function useDeleteQueryBlog(): (id: string) => Promise<void> {
+/** Admins: removes a Query Blog (its category can then get a new one). Rejects on failure. */
+export function useDeleteQueryBlog(): (id: string, reason: string | null) => Promise<void> {
   const { dispatch } = useBlogsStore();
   return useCallback(
-    async (id) => {
-      await blogsApi.deleteBlog(id);
+    async (id, reason) => {
+      await blogsApi.deleteQueryBlog(id, reason);
       dispatch({ type: 'query/removed', id });
     },
     [dispatch],

@@ -89,6 +89,7 @@ dark mode a single extra scope (`[data-theme="dark"]`).
 | Focus ring               | `--color-focus`         | `blue-600 #3563c4`  | `blue-400 #7fa9ef`              |
 | Error text / border      | `--color-danger`        | `#b42318` **[new]** | `#ffb4a8` **[new]**             |
 | Success                  | `--color-success`       | `#1e6b4a` **[new]** | `#9fe0bf` **[new]**             |
+| Warning                  | `--color-warning`       | `#8a5300` **[new]** | `#ffd58a` **[new]**             |
 
 **Category colours [new].** Each category has a `color` in the database (`public.category_color`:
 `pink`, `green`, `blue`, `orange`, `black`). The client maps it to one token, rendered only as a
@@ -120,6 +121,8 @@ On a filled (navy) chip the dot gets a paper ring so black stays visible.
 | blue-400 / pink-400 on navy                   | 6.88 / 7.19 | AA, fine as text on navy                             |
 | blue-400 / pink-400 on paper                  | 2.15 / 2.06 | Decoration only → `-600` for text                    |
 | blue-600 / pink-600 on paper                  | 5.08 / 5.50 | AA                                                   |
+| amber-700 (warning) on paper / on white       | 5.7 / 6.3   | AA                                                   |
+| amber-200 (warning) on navy-950               | 11.8        | AAA                                                  |
 | hairline on paper                             | 1.30        | Decorative dividers only                             |
 
 ## 3. Typography
@@ -225,6 +228,11 @@ Reading measure: reference paragraphs cap at `64rem` (≈150 characters, too lon
     `--animate-arrive` (something just posted rises in under a soft blue wash that fades to
     the element's own background), `--animate-shimmer` (loading skeletons) and
     `--animate-sheet` (composer sheet entrance). All are neutralised by reduced motion.
+  - Admin panel and toasts (2026-11-12): `--color-warning` (pending status, warning toasts);
+    `--animate-toast-in`, `--animate-toast-out` and `--animate-toast-progress` (the bar under a
+    toast, its duration set inline). Toasts follow the brand: square, hairline border, a 2px
+    left rule in the variant's colour, no shadow. Reduced motion neutralises the motion and
+    hides the progress bar.
   - Avatars and status dots use `rounded-full`; everything else stays square-cornered.
 - **Type scale:** display, h1, h2, lead and tagline are fluid `clamp()` values whose rem term
   keeps them scaling with browser zoom. Their mobile and desktop ends match section 3.

@@ -5,7 +5,12 @@ import { parseInput } from '../../lib/validation.ts';
 import { listFeedQuery } from '../blogs/blogs.schemas.ts';
 import { viewerOf } from '../../middleware/authenticate.ts';
 import { createCommentBody } from './comments.schemas.ts';
-import { createComment, deleteComment, listComments, listMyComments } from './comments.service.ts';
+import {
+  createComment,
+  deleteComment,
+  listAuthorComments,
+  listComments,
+} from './comments.service.ts';
 
 interface Deps {
   db: Db;
@@ -36,6 +41,15 @@ export function deleteCommentHandler({
 
 export function listMyCommentsHandler({ db }: Deps): RequestHandler {
   return async (req, res) => {
-    res.json(await listMyComments(db, viewerOf(req), parseInput(listFeedQuery, req.query)));
+    const page = parseInput(listFeedQuery, req.query);
+    res.json(await listAuthorComments(db, viewerOf(req).id, page));
+  };
+}
+
+/** A member's comments, queries and replies, shown on their profile. */
+export function listMemberCommentsHandler({ db }: Deps): RequestHandler<{ userId: string }> {
+  return async (req, res) => {
+    const page = parseInput(listFeedQuery, req.query);
+    res.json(await listAuthorComments(db, req.params.userId, page));
   };
 }

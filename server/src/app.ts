@@ -5,11 +5,13 @@ import type { Logger } from 'pino';
 
 import type { ServerConfig } from './config/env.ts';
 import type { Db } from './db/schema.ts';
+import { adminRoutes } from './features/admin/admin.routes.ts';
 import { authRoutes } from './features/auth/auth.routes.ts';
 import { blogsRoutes } from './features/blogs/blogs.routes.ts';
 import { categoriesRoutes } from './features/categories/categories.routes.ts';
 import { commentsRoutes } from './features/comments/comments.routes.ts';
 import { healthRoutes } from './features/health/health.routes.ts';
+import { membersRoutes } from './features/members/members.routes.ts';
 import { referralsRoutes } from './features/referrals/referrals.routes.ts';
 import { usersRoutes } from './features/users/users.routes.ts';
 import type { AccessTokenVerifier } from './lib/accessToken.ts';
@@ -72,9 +74,11 @@ function apiRouter(deps: AppDeps): Router {
   router.use(healthRoutes()); //                     GET  /health
   router.use(categoriesRoutes(deps)); //             GET  /categories
   router.use('/auth', authRoutes(deps)); //          POST /auth/signup, /auth/referral-codes/validate
-  router.use(usersRoutes(withAuth)); //              GET  /me, /users/:id
+  router.use(usersRoutes(withAuth)); //              GET  /me
+  router.use(membersRoutes(withAuth)); //            GET  /members[/:id], /users/:id
   router.use(referralsRoutes(withAuth)); //          GET  /me/referrals
   router.use(blogsRoutes(withAuth)); //              /blogs[/:id], /query-blogs[/:id], /me/blogs
   router.use(commentsRoutes(withAuth)); //           /blogs/:id/comments[/:commentId], /me/comments
+  router.use('/admin', adminRoutes(withAuth)); //    /admin/* (approved admins only)
   return router;
 }

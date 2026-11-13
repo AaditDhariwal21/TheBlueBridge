@@ -109,6 +109,17 @@ export const ROUTES = {
       noindex: true,
     },
   },
+  adminPanel: {
+    // The panel's sections are nested routes inside the page (pages/AdminPanelPage.tsx).
+    path: '/adminpanel/*',
+    ...lazyPage(() => import('../pages/AdminPanelPage'), 'AdminPanelPage'),
+    requiresAuth: true,
+    meta: {
+      title: 'Admin panel — The Blue Bridge',
+      description: 'Run The Blue Bridge: approvals, Query Blogs and the activity log.',
+      noindex: true,
+    },
+  },
   account: {
     path: '/account',
     ...lazyPage(() => import('../pages/AccountPage'), 'AccountPage'),

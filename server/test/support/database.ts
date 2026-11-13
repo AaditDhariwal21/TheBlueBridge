@@ -23,7 +23,9 @@ export const skipWithoutDatabase =
 export interface TestDatabase {
   db: Db;
   pool: Pool;
-  /** Removes every user and everything they own. Categories stay. */
+  /** Connection string of this database, for tests that need their own connection. */
+  url: string;
+  /** Removes every user and everything they own, the admin action log included. Categories stay. */
   reset(): Promise<void>;
   drop(): Promise<void>;
 }
@@ -48,8 +50,14 @@ export async function createTestDatabase(): Promise<TestDatabase> {
   return {
     db,
     pool,
+    url: url.toString(),
     async reset() {
-      await sql`truncate auth.users cascade`.execute(db);
+      // The admin action log refuses TRUNCATE (append-only, 0007). This throwaway database
+      // skips ordinary triggers for the reset (a superuser-only setting).
+      await db.transaction().execute(async (trx) => {
+        await sql`set local session_replication_role = replica`.execute(trx);
+        await sql`truncate auth.users cascade`.execute(trx);
+      });
     },
     async drop() {
       await db.destroy();
@@ -65,6 +73,24 @@ async function withAdmin(url: string, statement: string): Promise<void> {
   } finally {
     await admin.end();
   }
+}
+
+/** True while the backend `pid` is waiting for a lock held by another transaction. */
+export async function isWaitingOnLock(pool: Pool, pid: number | undefined): Promise<boolean> {
+  const { rows } = await pool.query(
+    `select 1 from pg_stat_activity where pid = $1 and wait_event_type = 'Lock'`,
+    [pid],
+  );
+  return rows.length > 0;
+}
+
+/** Polls `condition` every 10 ms for up to 2 s. */
+export async function waitUntil(condition: () => Promise<boolean>): Promise<void> {
+  for (let i = 0; i < 200; i++) {
+    if (await condition()) return;
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  throw new Error('timed out');
 }
 
 /** Resolves to the Postgres error a promise rejects with (constraint name, SQLSTATE). */

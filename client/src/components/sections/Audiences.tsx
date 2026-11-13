@@ -25,27 +25,29 @@ const AUDIENCES: Audience[] = [
   },
 ];
 
-/** The two audiences, colour-coded to the two figures in the bridge artwork. */
+/** The two audiences, colour-coded to the two figures in the bridge artwork. Compact. */
 export function Audiences() {
   return (
-    <Section>
+    <Section spacing="none" className="py-10 sm:py-14">
       <Container>
-        <ol className="grid gap-6 md:grid-cols-2 md:gap-8">
+        <ol className="grid gap-4 md:grid-cols-2 md:gap-6">
           {AUDIENCES.map((audience, i) => (
             <li key={audience.title}>
               <Reveal delay={i * 100} className="h-full">
-                <Card accent={audience.accent} className="h-full">
-                  <span
-                    aria-hidden="true"
-                    className={cn(
-                      'block font-display text-numeral',
-                      audience.accent === 'blue' ? 'text-accent' : 'text-accent-2',
-                    )}
-                  >
-                    {String(i + 1).padStart(2, '0')}
-                  </span>
-                  <h2 className="mt-6 text-h3 sm:text-h2">{audience.title}</h2>
-                  <p className="mt-4 text-lg text-text-muted">{audience.description}</p>
+                <Card accent={audience.accent} className="h-full p-5 sm:p-6">
+                  <div className="flex items-baseline gap-4">
+                    <span
+                      aria-hidden="true"
+                      className={cn(
+                        'font-display text-h2',
+                        audience.accent === 'blue' ? 'text-accent' : 'text-accent-2',
+                      )}
+                    >
+                      {String(i + 1).padStart(2, '0')}
+                    </span>
+                    <h2 className="text-h3">{audience.title}</h2>
+                  </div>
+                  <p className="mt-3 text-text-muted">{audience.description}</p>
                 </Card>
               </Reveal>
             </li>

@@ -8,9 +8,11 @@ import type { UserRole, UserStatus } from '../db/schema.ts';
  *   represented as null, and pending/rejected/suspended users) can only browse.
  * - member:     writes discussion blogs, comments and replies, posts queries.
  * - ambassador: member powers, plus answers queries and moderates, but only in
- *               their own categories (1 or 2).
- * - admin:      ambassador powers in every category, and the only role that
- *               starts Query Blogs (one per category).
+ *               their own categories (1 or 2). Inside a Query Blog only: an
+ *               ambassador never removes a whole Query Blog.
+ * - admin:      ambassador powers in every category; the only role that starts
+ *               and removes Query Blogs (one per category), approves applications
+ *               and uses the admin panel.
  * - The author of a query, of any role, may reply under their own query.
  */
 
@@ -53,7 +55,10 @@ export function canReplyUnderQuery(
   return actor.id === query.authorId || hasCategoryPower(actor, [query.categoryId]);
 }
 
-/** Delete a blog, a comment or a query on a blog tagged with these categories. */
+/**
+ * Delete a discussion blog, or a comment or query on a blog tagged with these
+ * categories. A whole Query Blog needs canDeleteQueryBlog.
+ */
 export function canModerate(
   actor: ScopedActor | null,
   blogCategoryIds: readonly string[],
@@ -61,14 +66,27 @@ export function canModerate(
   return isApproved(actor) && hasCategoryPower(actor, blogCategoryIds);
 }
 
-/** Start a category's Query Blog (the database allows one per category). Admins only. */
-export function canCreateQueryBlog(actor: Actor | null): boolean {
+/** The admin panel and every /api/admin endpoint: approved admins only. */
+export function canUseAdminPanel(actor: Actor | null): boolean {
   return isApproved(actor) && actor.role === 'admin';
 }
 
-/** See every referral, not just one's own. */
-export function canViewAllReferrals(actor: Actor | null): boolean {
-  return isApproved(actor) && actor.role === 'admin';
+/** Start a category's Query Blog (the database allows one per category). Admins only. */
+export function canCreateQueryBlog(actor: Actor | null): boolean {
+  return canUseAdminPanel(actor);
+}
+
+/** Remove a whole Query Blog with its queries. Admins only; ambassadors moderate inside it. */
+export function canDeleteQueryBlog(actor: Actor | null): boolean {
+  return canUseAdminPanel(actor);
+}
+
+/** Approve an application: an admin, for a pending member or ambassador. */
+export function canApproveMember(
+  actor: Actor | null,
+  applicant: { readonly role: UserRole; readonly status: UserStatus },
+): boolean {
+  return canUseAdminPanel(actor) && applicant.status === 'pending' && applicant.role !== 'admin';
 }
 
 /** Admins everywhere; ambassadors where any of the categories is one of their own. */

@@ -10,15 +10,12 @@ import {
   isWellFormedReferralCode,
   normalizeReferralCode,
 } from '../../lib/referralCode.ts';
-import { paginate, type Cursor } from '../../lib/cursor.ts';
-import type { Viewer } from '../../middleware/authenticate.ts';
-import { canViewAllReferrals } from '../../policies/permissions.ts';
+import { encodeCursor, paginate, type Cursor } from '../../lib/cursor.ts';
 import {
   countReferredUsers,
   findUsableCode,
   insertCode,
   selectReferredUsers,
-  type ReferralScope,
 } from './referrals.repository.ts';
 
 export interface ReferralDto {
@@ -69,25 +66,24 @@ export async function issueReferralCode(trx: Db, userId: string): Promise<void> 
   throw new Error('Could not generate a unique referral code');
 }
 
-/** The people the viewer referred; an approved admin sees everyone who was referred. */
+/**
+ * The people who joined with one member's referral code, newest first, with counts. The
+ * caller decides whose: the signed-in member's own (GET /me/referrals), or any member's
+ * for an admin (GET /admin/members/:id). Codes themselves are never listed.
+ */
 export async function listReferrals(
   db: Db,
-  viewer: Viewer,
+  referrerId: string,
   page: { limit: number; cursor?: Cursor | undefined },
 ): Promise<ReferralsDto> {
-  const scope: ReferralScope = canViewAllReferrals(viewer)
-    ? { kind: 'all' }
-    : { kind: 'referrer', userId: viewer.id };
-
   const [rows, groups] = await Promise.all([
-    selectReferredUsers(db, scope, page),
-    countReferredUsers(db, scope),
+    selectReferredUsers(db, referrerId, page),
+    countReferredUsers(db, referrerId),
   ]);
 
-  const { items, nextCursor } = paginate(rows, page.limit, (row) => ({
-    createdAt: row.created_at_key,
-    id: row.user_id,
-  }));
+  const { items, nextCursor } = paginate(rows, page.limit, (row) =>
+    encodeCursor({ createdAt: row.created_at_key, id: row.user_id }),
+  );
   const counts: ReferralsDto['counts'] = {
     total: 0,
     byStatus: zeroed(USER_STATUSES),

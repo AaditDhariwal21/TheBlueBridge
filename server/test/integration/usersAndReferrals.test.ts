@@ -3,7 +3,7 @@ import { after, before, describe, it } from 'node:test';
 
 import type { Category } from '../../src/features/categories/categories.service.ts';
 import type { ReferralsDto } from '../../src/features/referrals/referrals.service.ts';
-import type { PublicProfileDto } from '../../src/features/users/users.service.ts';
+import type { ProfileCardDto } from '../../src/features/members/members.service.ts';
 import { createTestDatabase, skipWithoutDatabase, type TestDatabase } from '../support/database.ts';
 import { insertUser, type TestUser } from '../support/fixtures.ts';
 import { startTestApp, type TestApp } from '../support/testApp.ts';
@@ -55,7 +55,7 @@ describe('GET /categories, /users/:id and /me/referrals', { skip: skipWithoutDat
   });
 
   it('shows the public subset of an approved user, and nothing else', async () => {
-    const res = await app.get<{ user: PublicProfileDto }>(`/users/${ambassador.id}`);
+    const res = await app.get<{ user: ProfileCardDto }>(`/users/${ambassador.id}`);
     assert.equal(res.status, 200);
     assert.deepEqual(Object.keys(res.body.user).sort(), [
       'avatarUrl',
@@ -92,7 +92,7 @@ describe('GET /categories, /users/:id and /me/referrals', { skip: skipWithoutDat
     assert.equal(res.body.nextCursor, null);
   });
 
-  it('shows an admin everyone who was referred, page by page', async () => {
+  it('shows an admin only their own referrals, page by page', async () => {
     const token = await tokens.sign(admin.id);
     const seen: string[] = [];
     let cursor: string | null = null;
@@ -103,14 +103,17 @@ describe('GET /categories, /users/:id and /me/referrals', { skip: skipWithoutDat
         token,
       );
       assert.equal(res.status, 200);
-      assert.equal(res.body.counts.total, 4);
+      assert.equal(res.body.counts.total, 2);
       seen.push(...res.body.referrals.map((r) => r.id));
       cursor = res.body.nextCursor;
     } while (cursor !== null);
 
-    assert.equal(seen.length, 4);
-    assert.equal(new Set(seen).size, 4);
-    assert.ok(!seen.includes(admin.id));
+    assert.deepEqual(seen.sort(), [member.id, ambassador.id].sort());
+  });
+
+  it('refuses pending accounts and visitors', async () => {
+    assert.equal((await app.get('/me/referrals')).status, 401);
+    assert.equal((await app.get('/me/referrals', await tokens.sign(pending.id))).status, 403);
   });
 
   it('rejects a tampered cursor', async () => {

@@ -1,10 +1,11 @@
 import { useRef, useState } from 'react';
 import { Link } from 'react-router';
 
+import { Avatar } from '../../../../components/ui/Avatar';
+import { useToast } from '../../../../components/ui/toast';
 import { cn } from '../../../../lib/cn';
 import { flattenReplies, type CommentNode } from '../../lib/commentTree';
 import { plural } from '../../lib/text';
-import { Avatar } from '../shared/Avatar';
 import { ArrowRightIcon, ChevronDownIcon, ElbowIcon, ReplyIcon } from '../shared/Icons';
 import { RelativeTime } from '../shared/RelativeTime';
 import { CommentComposer } from './CommentComposer';
@@ -209,7 +210,7 @@ export function CommentItem({ node, depth, flat = false }: CommentItemProps) {
   );
 }
 
-/** Moderators only. Asks first; shows a short error if the request fails. */
+/** Moderators only. Asks first; a failure is reported in a toast. */
 function RemoveButton({
   label,
   authorName,
@@ -219,35 +220,35 @@ function RemoveButton({
   authorName: string;
   onRemove: () => Promise<void>;
 }) {
-  const [state, setState] = useState<'idle' | 'removing' | 'failed'>('idle');
+  const toast = useToast();
+  const [removing, setRemoving] = useState(false);
   const handleClick = () => {
-    if (state === 'removing') return;
+    if (removing) return;
     if (!window.confirm(`Remove this ${label} by ${authorName}? Its text will be hidden.`)) return;
-    setState('removing');
-    onRemove().catch(() => {
-      setState('failed');
-    });
+    setRemoving(true);
+    onRemove().then(
+      () => {
+        toast.success(`The ${label} was removed.`);
+      },
+      () => {
+        setRemoving(false);
+        toast.error(`Couldn’t remove the ${label}. Please try again.`);
+      },
+    );
   };
   return (
-    <>
-      <button
-        type="button"
-        onClick={handleClick}
-        aria-disabled={state === 'removing' || undefined}
-        className="inline-flex min-h-11 items-center px-2 text-sm text-text-muted transition-colors hover:text-danger"
-      >
-        {state === 'removing' ? 'Removing…' : 'Remove'}
-        <span className="sr-only">
-          {' '}
-          {label} by {authorName}
-        </span>
-      </button>
-      {state === 'failed' && (
-        <span role="alert" className="text-xs text-danger">
-          Couldn’t remove it. Try again.
-        </span>
-      )}
-    </>
+    <button
+      type="button"
+      onClick={handleClick}
+      aria-disabled={removing || undefined}
+      className="inline-flex min-h-11 items-center px-2 text-sm text-text-muted transition-colors hover:text-danger"
+    >
+      {removing ? 'Removing…' : 'Remove'}
+      <span className="sr-only">
+        {' '}
+        {label} by {authorName}
+      </span>
+    </button>
   );
 }
 

@@ -1,12 +1,9 @@
-import { z } from 'zod';
-
 import type { Db, UserRole, UserStatus } from '../../db/schema.ts';
 import { AppError } from '../../lib/errors.ts';
 import type { Viewer } from '../../middleware/authenticate.ts';
 import type { ScopedActor } from '../../policies/permissions.ts';
 import type { Category } from '../categories/categories.service.ts';
 import {
-  findApprovedPublicProfile,
   findPrincipal,
   findProfile,
   insertCategories,
@@ -29,16 +26,6 @@ export interface MeDto {
   /** Theirs to share. Only works for others while this user is approved. */
   referralCode: string | null;
   createdAt: string;
-}
-
-/** GET /users/:id: safe to show anyone. Never email, phone or status. */
-export interface PublicProfileDto {
-  id: string;
-  name: string;
-  occupation: string;
-  role: UserRole;
-  avatarUrl: string | null;
-  categories: Category[];
 }
 
 /** id, role and status, for requireAuth. */
@@ -71,24 +58,6 @@ export async function getMe(db: Db, viewer: Viewer): Promise<MeDto> {
 export async function getScopedActor(db: Db, viewer: Viewer): Promise<ScopedActor> {
   const categoryIds = viewer.role === 'ambassador' ? await selectCategoryIds(db, viewer.id) : [];
   return { id: viewer.id, role: viewer.role, status: viewer.status, categoryIds };
-}
-
-const userId = z.uuid();
-
-/** Approved users only. Unknown, unapproved and malformed ids all get the same 404. */
-export async function getPublicProfile(db: Db, id: string): Promise<PublicProfileDto> {
-  const profile = userId.safeParse(id).success
-    ? await findApprovedPublicProfile(db, id)
-    : undefined;
-  if (!profile) throw new AppError('NOT_FOUND', 'User not found.');
-  return {
-    id: profile.user_id,
-    name: profile.name,
-    occupation: profile.occupation,
-    role: profile.role,
-    avatarUrl: profile.avatar_url,
-    categories: profile.categories,
-  };
 }
 
 /** Inserts a pending profile and, for ambassadors, their categories. Run inside a transaction. */

@@ -30,6 +30,8 @@ interface RequestOptions {
   body?: unknown;
   /** Supabase access token, sent as a Bearer token. */
   token?: string;
+  /** Cancels the request; the promise then rejects with the fetch AbortError. */
+  signal?: AbortSignal | undefined;
 }
 
 /** Resolves to the parsed JSON body; the caller states its shape. Throws ApiError. */
@@ -44,8 +46,10 @@ export async function apiRequest(path: string, options: RequestOptions = {}): Pr
       method: options.method ?? 'GET',
       headers,
       ...(options.body !== undefined && { body: JSON.stringify(options.body) }),
+      ...(options.signal && { signal: options.signal }),
     });
-  } catch {
+  } catch (error) {
+    if (options.signal?.aborted) throw error; // cancelled on purpose, not a network failure
     throw new ApiError(0, 'NETWORK', 'Check your connection and try again.');
   }
 

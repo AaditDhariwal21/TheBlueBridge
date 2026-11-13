@@ -1,3 +1,4 @@
+import type { Page } from '../../../lib/usePagedList';
 import type { Category } from '../../categories/types';
 import type { RichDoc } from './richText';
 
@@ -7,7 +8,7 @@ import type { RichDoc } from './richText';
  * Timestamps are ISO-8601 strings, as they arrive over the wire.
  */
 
-export type { Category };
+export type { Category, Page };
 
 /** A person as the Blogs section shows them. */
 export interface User {
@@ -65,12 +66,6 @@ export interface Comment {
   body: string | null;
   removed: boolean;
   createdAt: string;
-}
-
-/** A cursor-paginated slice of a list. `nextCursor` is null at the end. */
-export interface Page<T> {
-  items: T[];
-  nextCursor: string | null;
 }
 
 export interface NewBlogInput {

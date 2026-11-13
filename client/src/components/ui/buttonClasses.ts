@@ -9,6 +9,10 @@ const VARIANTS = {
   outline:
     'border-primary text-primary hover:bg-primary hover:text-on-primary ' +
     'aria-disabled:hover:bg-transparent aria-disabled:hover:text-primary',
+  /** Confirms something destructive (removing content). */
+  danger:
+    'border-danger bg-danger text-on-primary hover:bg-transparent hover:text-danger ' +
+    'aria-disabled:hover:bg-danger aria-disabled:hover:text-on-primary',
 } as const;
 
 const SIZES = {

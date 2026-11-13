@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
+import { useToast } from '../../components/ui/toast';
 import { ApiError, retryTransient } from '../../lib/api';
 import { fetchMe } from './api';
 import {
@@ -34,6 +35,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [notice, setNotice] = useState<'noAccount' | undefined>(undefined);
   const [reloadKey, setReloadKey] = useState(0);
+  const toast = useToast();
+  /** What to say once the next profile arrives (set by signIn and checkApproval). */
+  const announce = useRef<'signedIn' | 'checked' | null>(null);
+  /** The last profile status seen, to notice an approval when it happens. */
+  const lastSeen = useRef<{ userId: string; status: Me['status'] } | null>(null);
 
   useEffect(() => {
     const loading = getSupabase();
@@ -71,7 +77,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           PROFILE_RETRY_DELAYS_MS,
           stale.signal,
         );
-        if (!stale.signal.aborted) setProfile({ status: 'ready', userId, me });
+        if (stale.signal.aborted) return;
+        setProfile({ status: 'ready', userId, me });
+        greet(me);
       } catch (error) {
         if (stale.signal.aborted) return;
         if (error instanceof ApiError && error.status === 401) {
@@ -84,28 +92,59 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     })();
 
+    /** Toasts for this profile: welcome after signing in, and news about approval. */
+    function greet(me: Me) {
+      const firstName = me.name.split(' ')[0] ?? me.name;
+      const previous = lastSeen.current;
+      const reason = announce.current;
+      announce.current = null;
+      lastSeen.current = { userId: me.id, status: me.status };
+
+      if (previous?.userId === me.id && previous.status === 'pending' && me.status === 'approved') {
+        toast.success(`Your account is approved, ${firstName}. Welcome to The Blue Bridge!`);
+      } else if (reason === 'signedIn') {
+        if (me.status === 'approved') toast.success(`Welcome back, ${firstName}.`);
+        else if (me.status === 'pending') {
+          toast.info('You’re signed in. Your account is waiting for an admin’s approval.');
+        } else toast.info('You’re signed in.');
+      } else if (reason === 'checked' && me.status === 'pending') {
+        toast.info('Still waiting for approval. We’ll let you in as soon as an admin approves.');
+      }
+    }
+
     return () => {
       stale.abort();
     };
-  }, [userId, reloadKey]);
+  }, [userId, reloadKey, toast]);
 
   const signIn = useCallback(async (email: string, password: string): Promise<SignInResult> => {
     const supabase = await getSupabase();
     if (!supabase) return { ok: false, reason: 'unavailable' };
     setNotice(undefined);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (!error) return { ok: true };
+    if (!error) {
+      announce.current = 'signedIn';
+      return { ok: true };
+    }
     return { ok: false, reason: error.code === 'invalid_credentials' ? 'invalid' : 'unavailable' };
   }, []);
 
   const signOut = useCallback(async () => {
-    await (await getSupabase())?.auth.signOut();
-  }, []);
+    const result = await (await getSupabase())?.auth.signOut();
+    lastSeen.current = null;
+    if (result?.error) toast.error('Signing out didn’t finish. Please try again.');
+    else toast.success('You’re signed out. See you soon.');
+  }, [toast]);
 
   const reload = useCallback(() => {
     setProfile((current) => current && { status: 'loading', userId: current.userId });
     setReloadKey((key) => key + 1);
   }, []);
+
+  const checkApproval = useCallback(() => {
+    announce.current = 'checked';
+    reload();
+  }, [reload]);
 
   // Still failing after the retries: try again by itself when the tab comes back
   // into view or the network returns, instead of waiting for a click.
@@ -133,8 +172,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [userId, profile, notice]);
 
   const value = useMemo<AuthContextValue>(
-    () => ({ state, signIn, signOut, reload }),
-    [state, signIn, signOut, reload],
+    () => ({ state, signIn, signOut, reload, checkApproval }),
+    [state, signIn, signOut, reload, checkApproval],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

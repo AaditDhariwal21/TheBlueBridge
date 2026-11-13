@@ -22,6 +22,14 @@ export const QUERY_BLOG_RULES = {
 
 export const COMMENT_MAX = 2_000;
 
+/** Feed search. Mirrors FEED_SEARCH_LIMITS in server/src/features/blogs/blogs.schemas.ts. */
+export const FEED_SEARCH_RULES = {
+  queryMin: 2,
+  queryMax: 100,
+  maxCategories: 10,
+  debounceMs: 300,
+} as const;
+
 export interface BlogDraft {
   title: string;
   /** The editor's document; null until something is typed. */

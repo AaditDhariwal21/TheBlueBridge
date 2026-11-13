@@ -218,12 +218,24 @@ describe('blogs, Query Blogs and comments API', { skip: skipWithoutDatabase }, (
     assert.deepEqual(list.body.queryBlogs.map((q) => q.category.name).sort(), ['Finance', 'Tech']);
   });
 
-  it('frees the category when its Query Blog is removed', async () => {
+  it('lets only admins remove a whole Query Blog, which frees its category', async () => {
     const first = (await startQueryBlog(admin, 'tech')).body.queryBlog;
-    // Its ambassadors can still moderate it, though only admins start one.
-    assert.equal((await app.del(`/blogs/${first.id}`, await as(techAmbassador))).status, 204);
+    // Its ambassadors moderate inside it, but never remove the whole Query Blog.
+    for (const user of [techAmbassador, member]) {
+      const res = await app.del(`/blogs/${first.id}`, await as(user));
+      assert.equal(res.status, 403);
+      assert.equal(res.body?.error.code, 'FORBIDDEN');
+    }
+    assert.equal((await app.del(`/blogs/${first.id}`, await as(admin))).status, 204);
     assert.equal((await app.get(`/query-blogs/${first.id}`)).status, 404);
     assert.equal((await startQueryBlog(admin, 'tech')).status, 201);
+  });
+
+  it('still lets ambassadors remove queries and answers inside their Query Blog', async () => {
+    const topic = (await startQueryBlog(admin, 'tech')).body.queryBlog;
+    const asked = await comment(member, topic.id, null);
+    const path = `/blogs/${topic.id}/comments/${asked.body.comment.id}`;
+    assert.equal((await app.del(path, await as(techAmbassador))).status, 204);
   });
 
   /* ------------------------------------------------------------ comments */
@@ -395,6 +407,35 @@ describe('blogs, Query Blogs and comments API', { skip: skipWithoutDatabase }, (
   });
 
   /* ----------------------------------------------------------- moderation */
+
+  it("shows a member's blogs and comments to other approved members, newest first", async () => {
+    const older = await publish(member, [cat.tech], 'An older blog post title');
+    const newer = await publish(member, [cat.finance], 'A newer blog post title');
+    await comment(member, older.id, null);
+    const token = await as(otherMember);
+
+    const blogs = await app.get<{ blogs: BlogDto[]; nextCursor: string | null }>(
+      `/members/${member.id}/blogs?limit=1`,
+      token,
+    );
+    assert.deepEqual(
+      blogs.body.blogs.map((b) => b.id),
+      [newer.id],
+    );
+    assert.notEqual(blogs.body.nextCursor, null);
+
+    const comments = await app.get<{ comments: { blog: { id: string } }[] }>(
+      `/members/${member.id}/comments`,
+      token,
+    );
+    assert.deepEqual(
+      comments.body.comments.map((c) => c.blog.id),
+      [older.id],
+    );
+    // Someone else's lists are not the viewer's own.
+    const mine = await app.get<{ blogs: BlogDto[] }>('/me/blogs', token);
+    assert.deepEqual(mine.body.blogs, []);
+  });
 
   it('lets ambassadors moderate blogs with any matching category, and admins anything', async () => {
     const techAndFinance = await publish(member, [cat.finance, cat.tech]);

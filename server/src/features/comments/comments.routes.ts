@@ -6,6 +6,7 @@ import {
   createCommentHandler,
   deleteCommentHandler,
   listCommentsHandler,
+  listMemberCommentsHandler,
   listMyCommentsHandler,
 } from './comments.handlers.ts';
 
@@ -21,5 +22,7 @@ export function commentsRoutes(deps: {
   router.post('/blogs/:blogId/comments', ...write, deps.limitWrites, createCommentHandler(deps));
   router.delete('/blogs/:blogId/comments/:commentId', ...write, deleteCommentHandler(deps));
   router.get('/me/comments', deps.requireAuth, listMyCommentsHandler(deps));
+  // On a member's profile, which only approved members can open.
+  router.get('/members/:userId/comments', ...write, listMemberCommentsHandler(deps));
   return router;
 }

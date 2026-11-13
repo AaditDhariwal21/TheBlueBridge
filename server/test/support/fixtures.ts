@@ -81,7 +81,15 @@ export async function insertUser(
 /** A blog and its category links, written in one transaction (as the API will). */
 export async function insertBlog(
   db: Db,
-  options: { authorId: string; type?: BlogType; categoryIds: string[] },
+  options: {
+    authorId: string;
+    type?: BlogType;
+    categoryIds: string[];
+    title?: string;
+    body?: string;
+    /** Pins created_at (and updated_at), e.g. to make several blogs tie. */
+    createdAt?: Date;
+  },
 ): Promise<string> {
   return db.transaction().execute(async (trx) => {
     const { blog_id } = await trx
@@ -89,8 +97,12 @@ export async function insertBlog(
       .values({
         user_id: options.authorId,
         type: options.type ?? 'discussion',
-        title: 'A title',
-        body: 'A body',
+        title: options.title ?? 'A title',
+        body: options.body ?? 'A body',
+        ...(options.createdAt && {
+          created_at: options.createdAt,
+          updated_at: options.createdAt,
+        }),
       })
       .returning('blog_id')
       .executeTakeFirstOrThrow();

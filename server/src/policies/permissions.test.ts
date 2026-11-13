@@ -3,12 +3,14 @@ import { describe, it } from 'node:test';
 
 import { USER_STATUSES, type UserRole, type UserStatus } from '../db/schema.ts';
 import {
+  canApproveMember,
   canComment,
   canCreateQueryBlog,
+  canDeleteQueryBlog,
   canModerate,
   canPostQuery,
   canReplyUnderQuery,
-  canViewAllReferrals,
+  canUseAdminPanel,
   canWriteBlog,
   isApproved,
   type ScopedActor,
@@ -145,12 +147,39 @@ describe('canCreateQueryBlog', () => {
   });
 });
 
-describe('canViewAllReferrals', () => {
-  it('is for approved admins only', () => {
-    assert.equal(canViewAllReferrals(admin), true);
-    assert.equal(canViewAllReferrals(ambassador), false);
-    assert.equal(canViewAllReferrals(member), false);
-    assert.equal(canViewAllReferrals(actor('admin', { status: 'suspended' })), false);
-    assert.equal(canViewAllReferrals(null), false);
+describe('canUseAdminPanel and canDeleteQueryBlog', () => {
+  for (const [name, check] of Object.entries({ canUseAdminPanel, canDeleteQueryBlog })) {
+    it(`${name}: approved admins only`, () => {
+      assert.equal(check(admin), true);
+      for (const status of NOT_APPROVED) assert.equal(check(actor('admin', { status })), false);
+    });
+
+    it(`${name}: never ambassadors (even in their categories), members or visitors`, () => {
+      assert.equal(check(ambassador), false);
+      assert.equal(check(member), false);
+      assert.equal(check(null), false);
+    });
+  }
+});
+
+describe('canApproveMember', () => {
+  const applicant = (role: UserRole, status: UserStatus = 'pending') => ({ role, status });
+
+  it('lets an approved admin approve a pending member or ambassador', () => {
+    assert.equal(canApproveMember(admin, applicant('member')), true);
+    assert.equal(canApproveMember(admin, applicant('ambassador')), true);
+  });
+
+  it('refuses anyone who is not pending, and pending admins', () => {
+    for (const status of USER_STATUSES.filter((s) => s !== 'pending')) {
+      assert.equal(canApproveMember(admin, applicant('member', status)), false, status);
+    }
+    assert.equal(canApproveMember(admin, applicant('admin')), false);
+  });
+
+  it('refuses non-admins and unapproved admins', () => {
+    for (const who of [member, ambassador, null, actor('admin', { status: 'pending' })]) {
+      assert.equal(canApproveMember(who, applicant('member')), false);
+    }
   });
 });

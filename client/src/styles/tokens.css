@@ -26,6 +26,8 @@
   --palette-red-700: #b42318;
   --palette-green-200: #9fe0bf;
   --palette-green-700: #1e6b4a;
+  --palette-amber-200: #ffd58a;
+  --palette-amber-700: #8a5300;
   /* Category dots (decorative; the category name is always printed beside them). */
   --palette-green-400: #4fb37e;
   --palette-orange-400: #ee9a4d;
@@ -71,6 +73,7 @@
   --color-focus: var(--palette-blue-600);
   --color-danger: var(--palette-red-700);
   --color-success: var(--palette-green-700);
+  --color-warning: var(--palette-amber-700);
   /* Category colours: the value of categories.color in the database, one token each.
      Same in every tone. */
   --color-category-pink: var(--palette-pink-400);
@@ -151,6 +154,11 @@
   /* Loading placeholders. Reduced motion stops it (see index.css). */
   --animate-shimmer: shimmer 1.4s ease-in-out infinite;
   --animate-sheet: sheet var(--duration-base) var(--ease-out) both;
+  /* Toasts: slide in, fade out; the bar under a toast shrinks over its lifetime
+     (the toast sets the duration inline). */
+  --animate-toast-in: toast-in var(--duration-base) var(--ease-out) both;
+  --animate-toast-out: toast-out var(--duration-fast) var(--ease-standard) both;
+  --animate-toast-progress: toast-progress 1s linear both;
 
   @keyframes rise {
     from {
@@ -201,6 +209,26 @@
       translate: 0 1.5rem;
     }
   }
+  @keyframes toast-in {
+    from {
+      opacity: 0;
+      translate: 0 -0.75rem;
+    }
+  }
+  @keyframes toast-out {
+    to {
+      opacity: 0;
+      scale: 0.97;
+    }
+  }
+  @keyframes toast-progress {
+    from {
+      scale: 1 1;
+    }
+    to {
+      scale: 0 1;
+    }
+  }
 }
 
 /* ------------------------------------------------------------------ tones */
@@ -221,4 +249,5 @@
   --color-focus: var(--palette-blue-400);
   --color-danger: var(--palette-red-200);
   --color-success: var(--palette-green-200);
+  --color-warning: var(--palette-amber-200);
 }

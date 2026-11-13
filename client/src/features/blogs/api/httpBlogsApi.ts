@@ -9,6 +9,7 @@ import type {
   CommentSubject,
   MyBlog,
   MyComment,
+  Page,
   QueryBlog,
   User,
 } from '../model/types';
@@ -115,6 +116,18 @@ async function orNull<T>(request: Promise<T>): Promise<T | null> {
   }
 }
 
+function feedQuery(params: {
+  cursor: string | null;
+  limit: number;
+  q?: string;
+  categoryIds?: readonly string[];
+}): string {
+  const query = new URLSearchParams(pageQuery(params));
+  if (params.q) query.set('q', params.q);
+  if (params.categoryIds?.length) query.set('categories', params.categoryIds.join(','));
+  return query.toString();
+}
+
 async function write(method: 'POST' | 'DELETE', url: string, body?: unknown): Promise<unknown> {
   return apiRequest(url, {
     method,
@@ -123,9 +136,30 @@ async function write(method: 'POST' | 'DELETE', url: string, body?: unknown): Pr
   });
 }
 
+/** One author's blogs (signed-in requests: the viewer's own, or a member's on their profile). */
+async function blogsBy(url: string): Promise<Page<MyBlog>> {
+  const data = (await apiRequest(url, { token: await getAccessToken() })) as {
+    blogs: (BlogDto & { type: MyBlog['type'] })[];
+    nextCursor: string | null;
+  };
+  return {
+    items: data.blogs.map((dto) => ({ ...toBlog(dto), type: dto.type })),
+    nextCursor: data.nextCursor,
+  };
+}
+
+/** One author's comments, queries and replies, with the blog each is on. */
+async function commentsBy(url: string): Promise<Page<MyComment>> {
+  const data = (await apiRequest(url, { token: await getAccessToken() })) as {
+    comments: MyComment[];
+    nextCursor: string | null;
+  };
+  return { items: data.comments, nextCursor: data.nextCursor };
+}
+
 export const httpBlogsApi: BlogsApi = {
-  async listBlogs(page) {
-    const data = (await apiRequest(`/blogs?${pageQuery(page)}`)) as {
+  async listBlogs(params, signal) {
+    const data = (await apiRequest(`/blogs?${feedQuery(params)}`, { signal })) as {
       blogs: BlogDto[];
       nextCursor: string | null;
     };
@@ -178,24 +212,18 @@ export const httpBlogsApi: BlogsApi = {
   },
 
   async createQueryBlog(input) {
-    const data = (await write('POST', '/query-blogs', input)) as { queryBlog: QueryBlogDto };
+    const data = (await write('POST', '/admin/query-blogs', input)) as { queryBlog: QueryBlogDto };
     return toQueryBlog(data.queryBlog);
   },
 
-  async listMyBlogs(page) {
-    const data = (await apiRequest(`/me/blogs?${pageQuery(page)}`, {
-      token: await getAccessToken(),
-    })) as { blogs: (BlogDto & { type: MyBlog['type'] })[]; nextCursor: string | null };
-    return {
-      items: data.blogs.map((dto) => ({ ...toBlog(dto), type: dto.type })),
-      nextCursor: data.nextCursor,
-    };
+  async deleteQueryBlog(id, reason) {
+    await write('DELETE', path('admin', 'query-blogs', id), { reason });
   },
 
-  async listMyComments(page) {
-    const data = (await apiRequest(`/me/comments?${pageQuery(page)}`, {
-      token: await getAccessToken(),
-    })) as { comments: MyComment[]; nextCursor: string | null };
-    return { items: data.comments, nextCursor: data.nextCursor };
-  },
+  listMyBlogs: (page) => blogsBy(`/me/blogs?${pageQuery(page)}`),
+  listMyComments: (page) => commentsBy(`/me/comments?${pageQuery(page)}`),
+  listAuthorBlogs: ({ authorId, ...page }) =>
+    blogsBy(`${path('members', authorId, 'blogs')}?${pageQuery(page)}`),
+  listAuthorComments: ({ authorId, ...page }) =>
+    commentsBy(`${path('members', authorId, 'comments')}?${pageQuery(page)}`),
 };

@@ -1,5 +1,6 @@
-import { cn } from '../../../../lib/cn';
-import type { User } from '../../model/types';
+import { useState } from 'react';
+
+import { cn } from '../../lib/cn';
 
 /** Brand-only colourways, each with AA contrast for the initials. */
 const TONES = [
@@ -26,27 +27,45 @@ function toneFor(id: string): string {
 }
 
 interface AvatarProps {
-  user: Pick<User, 'id' | 'initials'>;
+  user: { id: string; initials: string };
+  /** Profile photo (https). Falls back to the initials if missing or if it fails to load. */
+  src?: string | null | undefined;
   size?: AvatarSize;
   className?: string;
 }
 
 /**
- * Initials avatar. Decorative: the person's name is always printed beside it,
+ * Photo or initials avatar. Decorative: the person's name is always printed beside it,
  * so it is hidden from assistive tech rather than announced twice.
  */
-export function Avatar({ user, size = 'md', className }: AvatarProps) {
+export function Avatar({ user, src, size = 'md', className }: AvatarProps) {
+  const [failed, setFailed] = useState<string | null>(null);
+  const photo = src && src !== failed ? src : null;
   return (
     <span
       aria-hidden="true"
       className={cn(
-        'grid shrink-0 place-items-center rounded-full font-medium select-none',
+        'grid shrink-0 place-items-center overflow-hidden rounded-full font-medium select-none',
         SIZES[size],
         toneFor(user.id),
         className,
       )}
     >
-      {user.initials}
+      {photo ? (
+        <img
+          src={photo}
+          alt=""
+          loading="lazy"
+          decoding="async"
+          referrerPolicy="no-referrer"
+          onError={() => {
+            setFailed(photo);
+          }}
+          className="size-full object-cover"
+        />
+      ) : (
+        user.initials
+      )}
     </span>
   );
 }

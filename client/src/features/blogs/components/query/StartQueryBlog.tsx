@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 
 import { Button } from '../../../../components/ui/Button';
+import { useToast } from '../../../../components/ui/toast';
 import { canCreateQueryBlog } from '../../../auth/permissions';
 import { useCategories } from '../../../categories/useCategories';
 import { queryBlogPath } from '../../lib/paths';
@@ -19,6 +20,7 @@ export function StartQueryBlog() {
   const { queryBlogs, status } = useQueryBlogs();
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
+  const toast = useToast();
 
   const startable = useMemo(() => {
     if (!canCreateQueryBlog(actor) || categories.status !== 'ready' || status !== 'ready')
@@ -50,6 +52,7 @@ export function StartQueryBlog() {
         }}
         onCreated={(queryBlog) => {
           setOpen(false);
+          toast.success(`“${queryBlog.title}” is live.`);
           void navigate(queryBlogPath(queryBlog.id));
         }}
       />

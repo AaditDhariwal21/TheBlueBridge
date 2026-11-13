@@ -19,8 +19,10 @@ export interface AuthContextValue {
   state: AuthState;
   signIn: (email: string, password: string) => Promise<SignInResult>;
   signOut: () => Promise<void>;
-  /** Fetch the profile again (after an error, or once an admin may have approved it). */
+  /** Fetch the profile again (after an error). */
   reload: () => void;
+  /** Fetch the profile again to see whether an admin has approved it, and say what changed. */
+  checkApproval: () => void;
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null);

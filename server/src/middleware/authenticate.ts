@@ -4,7 +4,7 @@ import type { Db } from '../db/schema.ts';
 import { getPrincipal } from '../features/users/users.service.ts';
 import type { AccessTokenVerifier } from '../lib/accessToken.ts';
 import { AppError } from '../lib/errors.ts';
-import { isApproved, type Actor } from '../policies/permissions.ts';
+import { canUseAdminPanel, isApproved, type Actor } from '../policies/permissions.ts';
 
 /** The signed-in caller: the profile's id, role and status, plus the token's email. */
 export interface Viewer extends Actor {
@@ -42,6 +42,17 @@ export function requireAuth(deps: {
 export const requireApproved: RequestHandler = (req, _res, next) => {
   if (!isApproved(viewerOf(req))) {
     throw new AppError('ACCOUNT_NOT_APPROVED', 'Your account is waiting for approval.');
+  }
+  next();
+};
+
+/**
+ * After requireAuth: approved admins only. Every /api/admin route runs this on every
+ * request; hiding the panel in the UI is only a convenience.
+ */
+export const requireAdmin: RequestHandler = (req, _res, next) => {
+  if (!canUseAdminPanel(viewerOf(req))) {
+    throw new AppError('FORBIDDEN', 'Only admins can do this.');
   }
   next();
 };

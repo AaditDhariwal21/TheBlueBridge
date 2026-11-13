@@ -10,6 +10,7 @@ import { BLOG_COMMENTS_COPY } from '../features/blogs/components/comments/thread
 import { BackLink } from '../features/blogs/components/shared/BackLink';
 import { BlogsLayout } from '../features/blogs/components/shared/BlogsLayout';
 import { StateMessage } from '../components/ui/StateMessage';
+import { useToast } from '../components/ui/toast';
 import { canModerate } from '../features/auth/permissions';
 import { BLOGS_PATH } from '../features/blogs/lib/paths';
 import type { Blog } from '../features/blogs/model/types';
@@ -92,7 +93,8 @@ function RemoveBlog({ blog }: { blog: Blog }) {
   const actor = useBlogActor();
   const deleteBlog = useDeleteBlog();
   const navigate = useNavigate();
-  const [state, setState] = useState<'idle' | 'removing' | 'failed'>('idle');
+  const toast = useToast();
+  const [removing, setRemoving] = useState(false);
 
   if (
     !canModerate(
@@ -103,33 +105,30 @@ function RemoveBlog({ blog }: { blog: Blog }) {
     return null;
 
   const handleClick = () => {
-    if (state === 'removing') return;
+    if (removing) return;
     if (!window.confirm(`Remove “${blog.title}”? It will disappear from the feed.`)) return;
-    setState('removing');
+    setRemoving(true);
     deleteBlog(blog.id).then(
-      () => void navigate(BLOGS_PATH, { replace: true }),
       () => {
-        setState('failed');
+        toast.success('The blog was removed.');
+        void navigate(BLOGS_PATH, { replace: true });
+      },
+      () => {
+        setRemoving(false);
+        toast.error('Couldn’t remove the blog. Please try again.');
       },
     );
   };
 
   return (
-    <span className="inline-flex items-center gap-2">
-      {state === 'failed' && (
-        <span role="alert" className="text-danger">
-          Couldn’t remove it.
-        </span>
-      )}
-      <button
-        type="button"
-        onClick={handleClick}
-        aria-disabled={state === 'removing' || undefined}
-        className="min-h-11 px-1 text-sm text-text-muted underline-offset-4 transition-colors hover:text-danger hover:underline"
-      >
-        {state === 'removing' ? 'Removing…' : 'Remove blog'}
-      </button>
-    </span>
+    <button
+      type="button"
+      onClick={handleClick}
+      aria-disabled={removing || undefined}
+      className="min-h-11 px-1 text-sm text-text-muted underline-offset-4 transition-colors hover:text-danger hover:underline"
+    >
+      {removing ? 'Removing…' : 'Remove blog'}
+    </button>
   );
 }
 

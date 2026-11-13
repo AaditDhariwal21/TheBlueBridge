@@ -4,6 +4,7 @@ import { jsonArrayFrom, jsonObjectFrom } from 'kysely/helpers/postgres';
 import type { BlogType, Database, Db } from '../../db/schema.ts';
 import { keysetBefore, type Cursor } from '../../lib/cursor.ts';
 import type { RichDoc } from '../../lib/richText.ts';
+import type { SearchCursor } from './blogs.schemas.ts';
 
 /** Characters of body shown on a feed card. */
 const EXCERPT_LENGTH = 280;
@@ -56,15 +57,68 @@ function liveBlogs(db: Db, type: BlogType) {
     .where('b.deleted_at', 'is', null);
 }
 
-/** The Feed: live discussion blogs, newest first (blogs_feed_idx). Fetches limit + 1. */
-export function selectFeed(db: Db, page: { limit: number; cursor?: Cursor | undefined }) {
-  const base = liveBlogs(db, 'discussion');
+/**
+ * Live discussion blogs, optionally only those tagged with any of `categoryIds`. EXISTS
+ * (not a join) so a blog in two of the chosen categories still appears once; it is served
+ * by the blogs_categories primary key (blog_id, cat_id).
+ */
+function feedBlogs(db: Db, categoryIds: readonly string[]) {
+  const live = liveBlogs(db, 'discussion');
+  if (categoryIds.length === 0) return live;
+  return live.where((eb) =>
+    eb.exists(
+      eb
+        .selectFrom('blogs_categories as fc')
+        .select('fc.blog_id')
+        .whereRef('fc.blog_id', '=', 'b.blog_id')
+        .where('fc.cat_id', 'in', categoryIds),
+    ),
+  );
+}
+
+/** The Feed, newest first (blogs_feed_idx). Fetches limit + 1. */
+export function selectFeed(
+  db: Db,
+  categoryIds: readonly string[],
+  page: { limit: number; cursor: Cursor | null },
+) {
+  const base = feedBlogs(db, categoryIds);
   const query =
-    page.cursor === undefined
+    page.cursor === null
       ? base
       : base.where(keysetBefore('b.created_at', 'b.blog_id', page.cursor));
   return query
     .select((eb) => blogCard(eb))
+    .orderBy('b.created_at', 'desc')
+    .orderBy('b.blog_id', 'desc')
+    .limit(page.limit + 1)
+    .execute();
+}
+
+/**
+ * Feed search (blogs_search_idx): blogs matching `tsquery`, most relevant first, newest
+ * first among equals. Relevance is ts_rank rounded to a fixed-scale numeric, so the exact
+ * value can travel in the cursor and the keyset comparison is stable. Fetches limit + 1.
+ */
+export function selectFeedSearch(
+  db: Db,
+  tsquery: string,
+  categoryIds: readonly string[],
+  page: { limit: number; cursor: SearchCursor | null },
+) {
+  const query = sql`to_tsquery('simple', ${tsquery})`;
+  const rank = sql<string>`round(ts_rank(b.search_vector, ${query})::numeric, 6)`;
+  const matching = feedBlogs(db, categoryIds).where(sql<boolean>`b.search_vector @@ ${query}`);
+  const { cursor } = page;
+  const paged =
+    cursor === null
+      ? matching
+      : matching.where(
+          sql<boolean>`(${rank}, b.created_at, b.blog_id) < (${cursor.r}::numeric, ${cursor.t}::timestamptz, ${cursor.id}::uuid)`,
+        );
+  return paged
+    .select((eb) => [...blogCard(eb), rank.as('rank_key')])
+    .orderBy(rank, 'desc')
     .orderBy('b.created_at', 'desc')
     .orderBy('b.blog_id', 'desc')
     .limit(page.limit + 1)
@@ -146,6 +200,7 @@ export function selectBlogForWrite(db: Db, blogId: string) {
     .select([
       'b.blog_id',
       'b.type',
+      'b.title',
       'b.user_id',
       sql<string[]>`array(
         select bc.cat_id::text from public.blogs_categories bc where bc.blog_id = b.blog_id
@@ -185,7 +240,10 @@ export async function insertBlog(
   return blog_id;
 }
 
-/** Soft delete. Comments and category links stay, so the history is auditable. */
+/**
+ * Soft delete, the one deletion mechanism for blogs of both types. Comments and category
+ * links stay (so the history is auditable) and become unreachable with the blog.
+ */
 export async function softDeleteBlog(db: Db, blogId: string, deletedBy: string): Promise<boolean> {
   const result = await db
     .updateTable('blogs')

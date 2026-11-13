@@ -5,8 +5,10 @@ import { sql } from 'kysely';
 
 import {
   createTestDatabase,
+  isWaitingOnLock,
   pgError,
   skipWithoutDatabase,
+  waitUntil,
   type TestDatabase,
 } from '../support/database.ts';
 import {
@@ -40,22 +42,6 @@ describe('database constraints and triggers', { skip: skipWithoutDatabase }, () 
 
   const addCategory = (userId: string, catId: string) =>
     t.db.insertInto('user_categories').values({ user_id: userId, cat_id: catId }).execute();
-
-  async function isWaitingOnLock(pid: number | undefined): Promise<boolean> {
-    const { rows } = await t.pool.query(
-      `select 1 from pg_stat_activity where pid = $1 and wait_event_type = 'Lock'`,
-      [pid],
-    );
-    return rows.length > 0;
-  }
-
-  async function waitUntil(condition: () => Promise<boolean>): Promise<void> {
-    for (let i = 0; i < 200; i++) {
-      if (await condition()) return;
-      await new Promise((resolve) => setTimeout(resolve, 10));
-    }
-    throw new Error('timed out');
-  }
 
   describe('ambassador categories', () => {
     it('allows up to 2 categories and refuses a third', async () => {
@@ -113,7 +99,7 @@ describe('database constraints and triggers', { skip: skipWithoutDatabase }, () 
 
         // Without the owner-row lock the second insert would finish here, seeing
         // only 2 categories, and the ambassador would end up with 3.
-        await waitUntil(async () => settled || (await isWaitingOnLock(secondPid)));
+        await waitUntil(async () => settled || (await isWaitingOnLock(t.pool, secondPid)));
         assert.equal(settled, false, 'the second insert should wait for the first transaction');
 
         await first.query('commit');

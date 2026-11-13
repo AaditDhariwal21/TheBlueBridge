@@ -16,9 +16,10 @@ import { cn } from '../lib/cn';
 import { StateMessage } from '../components/ui/StateMessage';
 import { blogsTabPath } from '../features/blogs/lib/paths';
 import { plural } from '../features/blogs/lib/text';
-import { canModerate } from '../features/auth/permissions';
+import { RemoveQueryBlogDialog } from '../features/admin/components/RemoveQueryBlogDialog';
+import { canDeleteQueryBlog } from '../features/auth/permissions';
 import type { QueryBlog } from '../features/blogs/model/types';
-import { useDeleteQueryBlog, useQueryBlog } from '../features/blogs/state/hooks';
+import { useQueryBlog } from '../features/blogs/state/hooks';
 import { useBlogActor } from '../features/blogs/state/viewer';
 
 export function QueryBlogPage() {
@@ -120,43 +121,33 @@ export function QueryBlogPage() {
   );
 }
 
-/** Moderators only: removes the Query Blog, which frees its category for a new one. */
+/** Admins only: removes the Query Blog, which frees its category for a new one. */
 function RemoveQueryBlog({ queryBlog }: { queryBlog: QueryBlog }) {
   const actor = useBlogActor();
-  const deleteQueryBlog = useDeleteQueryBlog();
   const navigate = useNavigate();
-  const [state, setState] = useState<'idle' | 'removing' | 'failed'>('idle');
+  const [confirming, setConfirming] = useState(false);
 
-  if (!canModerate(actor, [queryBlog.category.id])) return null;
-
-  const handleClick = () => {
-    if (state === 'removing') return;
-    const message = `Remove the ${queryBlog.title} Query Blog and all its queries from view?`;
-    if (!window.confirm(message)) return;
-    setState('removing');
-    deleteQueryBlog(queryBlog.id).then(
-      () => void navigate(blogsTabPath('queries'), { replace: true }),
-      () => {
-        setState('failed');
-      },
-    );
-  };
+  if (!canDeleteQueryBlog(actor)) return null;
 
   return (
-    <span className="inline-flex items-center gap-2 text-sm">
-      {state === 'failed' && (
-        <span role="alert" className="text-danger">
-          Couldn’t remove it.
-        </span>
-      )}
+    <>
       <button
         type="button"
-        onClick={handleClick}
-        aria-disabled={state === 'removing' || undefined}
-        className="min-h-11 px-1 text-text-muted underline-offset-4 transition-colors hover:text-danger hover:underline"
+        onClick={() => {
+          setConfirming(true);
+        }}
+        aria-haspopup="dialog"
+        className="min-h-11 px-1 text-sm text-text-muted underline-offset-4 transition-colors hover:text-danger hover:underline"
       >
-        {state === 'removing' ? 'Removing…' : 'Remove Query Blog'}
+        Remove Query Blog
       </button>
-    </span>
+      <RemoveQueryBlogDialog
+        queryBlog={confirming ? queryBlog : null}
+        onClose={() => {
+          setConfirming(false);
+        }}
+        onRemoved={() => void navigate(blogsTabPath('queries'), { replace: true })}
+      />
+    </>
   );
 }

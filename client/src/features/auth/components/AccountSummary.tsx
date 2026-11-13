@@ -1,13 +1,8 @@
 import type { ReactNode } from 'react';
 
 import { CategoryDot } from '../../../components/ui/CategoryDot';
-import type { Me, Role } from '../types';
-
-const ROLE_LABELS: Record<Role, string> = {
-  member: 'Member',
-  ambassador: 'Ambassador',
-  admin: 'Admin',
-};
+import { ROLE_LABELS } from '../labels';
+import type { Me } from '../types';
 
 /** The facts of an account as a definition list. */
 export function AccountSummary({ me, roleLabel }: { me: Me; roleLabel: string }) {

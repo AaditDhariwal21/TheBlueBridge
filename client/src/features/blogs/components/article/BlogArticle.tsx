@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { formatDate } from '../../lib/time';
 import { toParagraphs } from '../../lib/text';
 import type { Blog } from '../../model/types';
-import { Avatar } from '../shared/Avatar';
+import { Avatar } from '../../../../components/ui/Avatar';
 import { CategoryChip } from '../shared/CategoryChip';
 import { ClockIcon } from '../shared/Icons';
 import { RichText } from './RichText';

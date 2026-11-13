@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { NavigationType, useNavigationType, useSearchParams } from 'react-router';
 
+import { useToast } from '../components/ui/toast';
 import { canWriteBlog } from '../features/auth/permissions';
 import { BlogComposer } from '../features/blogs/components/composer/BlogComposer';
 import {
@@ -38,6 +39,7 @@ export function BlogsPage() {
   const [composerOpen, setComposerOpen] = useState(false);
   const canWrite = canWriteBlog(useBlogActor());
   const navigationType = useNavigationType();
+  const toast = useToast();
 
   // Back/forward into the feed: return to where the reader was.
   const restored = useRef(false);
@@ -159,6 +161,7 @@ export function BlogsPage() {
         }}
         onPublished={() => {
           setComposerOpen(false);
+          toast.success('Your blog is published.');
           // The feed card animates in, takes focus and scrolls into view.
         }}
       />

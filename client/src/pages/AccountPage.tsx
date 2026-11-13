@@ -6,11 +6,14 @@ import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { buttonClasses } from '../components/ui/buttonClasses';
 import { useAuth } from '../features/auth/authContext';
+import { ADMIN_PATH } from '../features/admin/paths';
 import { AccountSummary } from '../features/auth/components/AccountSummary';
 import { AuthShell } from '../features/auth/components/AuthShell';
+import { canUseAdminPanel } from '../features/auth/permissions';
 import { MyBlogs, MyComments } from '../features/blogs/components/mine/MyActivity';
 import type { Me } from '../features/auth/types';
 import { formatReferralCode } from '../features/auth/validation';
+import { MyReferrals } from '../features/referrals/components/MyReferrals';
 
 /**
  * The signed-in user's status. Pending users see that they are waiting for
@@ -18,7 +21,7 @@ import { formatReferralCode } from '../features/auth/validation';
  * Rendered inside RequireAuth, so there is always a profile.
  */
 export function AccountPage() {
-  const { state, signOut, reload } = useAuth();
+  const { state, signOut, checkApproval } = useAuth();
   const navigate = useNavigate();
   if (state.status !== 'signedIn') return null;
   const { me } = state;
@@ -58,7 +61,7 @@ export function AccountPage() {
             <Link to="/blogs" className={buttonClasses({ variant: 'outline' })}>
               Read the blogs
             </Link>
-            <Button variant="outline" onClick={reload}>
+            <Button variant="outline" onClick={checkApproval}>
               Check again
             </Button>
             {signOutButton}
@@ -113,15 +116,32 @@ export function AccountPage() {
               </section>
             )}
             <AccountSummary me={me} roleLabel="Role" />
-            <div className="flex flex-wrap gap-3">
-              <Link to="/blogs" className={buttonClasses({ variant: 'outline' })}>
-                Go to the blogs
-              </Link>
-              {signOutButton}
-            </div>
+            {canUseAdminPanel(me) ? (
+              // Admins: the panel takes the primary slot; the other two share the row below.
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Link
+                  to={ADMIN_PATH}
+                  className={buttonClasses({ variant: 'outline', className: 'sm:col-span-2' })}
+                >
+                  Go to Admin Panel
+                </Link>
+                <Link to="/blogs" className={buttonClasses({ variant: 'outline' })}>
+                  Go to the blogs
+                </Link>
+                {signOutButton}
+              </div>
+            ) : (
+              <div className="flex flex-wrap gap-3">
+                <Link to="/blogs" className={buttonClasses({ variant: 'outline' })}>
+                  Go to the blogs
+                </Link>
+                {signOutButton}
+              </div>
+            )}
           </Card>
 
           <div className="flex min-w-0 flex-col gap-6 lg:col-span-7">
+            <MyReferrals />
             <MyBlogs />
             <MyComments />
           </div>

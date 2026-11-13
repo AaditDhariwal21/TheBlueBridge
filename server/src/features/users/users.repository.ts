@@ -32,22 +32,6 @@ export function findProfile(db: Db, userId: string) {
     .executeTakeFirst();
 }
 
-export function findApprovedPublicProfile(db: Db, userId: string) {
-  return db
-    .selectFrom('users')
-    .select((eb) => [
-      'users.user_id',
-      'users.name',
-      'users.occupation',
-      'users.role',
-      'users.avatar_url',
-      categoriesOf(eb),
-    ])
-    .where('users.user_id', '=', userId)
-    .where('users.status', '=', 'approved')
-    .executeTakeFirst();
-}
-
 export async function insertProfile(
   db: Db,
   values: {

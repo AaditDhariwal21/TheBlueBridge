@@ -5,7 +5,7 @@ import { Textarea } from '../../../../components/ui/Textarea';
 import { cn } from '../../../../lib/cn';
 import { COMMENT_MAX, normaliseText } from '../../model/validation';
 import { useViewerAuthor } from '../../state/viewer';
-import { Avatar } from '../shared/Avatar';
+import { Avatar } from '../../../../components/ui/Avatar';
 import { CharacterCount } from '../shared/CharacterCount';
 
 /** The character count appears once the text reaches 80% of the limit. */
