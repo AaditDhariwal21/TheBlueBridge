@@ -10,6 +10,6 @@ export const ROLE_LABELS: Record<Role, string> = {
 export const STATUS_LABELS: Record<Status, string> = {
   pending: 'Pending',
   approved: 'Approved',
-  rejected: 'Rejected',
+  rejected: 'Not approved',
   suspended: 'Suspended',
 };

@@ -10,12 +10,13 @@ import { Skeleton } from '../../../components/ui/Skeleton';
 import { StateMessage } from '../../../components/ui/StateMessage';
 import { useDebouncedValue } from '../../../lib/useDebouncedValue';
 import { usePagedList, type PagedList } from '../../../lib/usePagedList';
+import { useQuery } from '../../../lib/useQuery';
 import { useAuth } from '../../auth/authContext';
 import type { Role } from '../../auth/types';
 import { JoinPrompt } from '../../blogs/components/shared/JoinPrompt';
 import { initialsOf, plural } from '../../blogs/lib/text';
-import { useAsync } from '../../../lib/useAsync';
 import {
+  DIRECTORY_PAGE_SIZE,
   DIRECTORY_SEARCH_RULES,
   fetchCommunitySize,
   fetchDirectoryPage,
@@ -69,7 +70,7 @@ export function MemberDirectory() {
 
 /** "We're 78 strong": approved admins, ambassadors and members. Shown to everyone. */
 function CommunitySize() {
-  const size = useAsync(fetchCommunitySize);
+  const size = useQuery('members/count', fetchCommunitySize);
   if (size.status === 'error') return null;
   return (
     <p className="flex shrink-0 items-baseline gap-2" aria-busy={size.status === 'loading'}>
@@ -101,15 +102,18 @@ function Directory({ viewerId }: { viewerId: string }) {
     .map((s) => s.role)
     .join(',');
   const fetchPage = useCallback(
-    (cursor: string | null, signal: AbortSignal) =>
+    (cursor: string | null, limit: number, signal: AbortSignal) =>
       fetchDirectoryPage(
         { q, roles: roleKey ? roleKey.split(',').filter(isRole) : [] },
         cursor,
+        limit,
         signal,
       ),
     [q, roleKey],
   );
-  const list = usePagedList(fetchPage);
+  const list = usePagedList(`members?q=${encodeURIComponent(q)}&roles=${roleKey}`, fetchPage, {
+    pageSize: DIRECTORY_PAGE_SIZE,
+  });
   const filtered = q !== '' || roles.length > 0;
 
   const clear = () => {

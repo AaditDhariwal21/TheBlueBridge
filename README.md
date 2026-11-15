@@ -84,6 +84,12 @@ against the project's signing keys and loads the user's role and status from Pos
   `features/auth/permissions.ts`; the server enforces the same rules.
 - `client/src/features/categories/`: the category list (`useCategories`), shared by sign-up
   and the composers.
+- `shared/`: code both workspaces import: input limits (`limits.ts`), ISO countries, phone and
+  profile rules. Each limit is defined there once.
+- `client/src/lib/queryCache.ts`: the one cache for API data (stale-while-revalidate: refetch
+  on page entry and tab focus); read through `useQuery` and `usePagedList`.
+- `client/src/features/application/`: the multi-step membership application (sign-up and
+  reapply) and the display of its answers.
 - `client/src/features/admin/`: the admin panel (`/adminpanel`): overview, members and
   approvals, Query Blogs, activity log. `client/src/features/members/`: the member directory
   on the Community page. `client/src/features/referrals/`: "People who joined using your
@@ -106,9 +112,11 @@ Everything is under `/api`. Reads are public; writes need an approved account (B
 | Method and path                            | Who                                                                                                                                                            |
 | ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `GET /health`, `GET /categories`           | anyone                                                                                                                                                         |
+| `GET /profile-options`                     | anyone: the application's choices (Jodhpur connections, journey stages, reasons for joining, weekly hours)                                                     |
 | `POST /auth/referral-codes/validate`       | anyone (rate-limited)                                                                                                                                          |
-| `POST /auth/signup`                        | anyone with a valid referral code                                                                                                                              |
-| `GET /me`                                  | signed in (any status)                                                                                                                                         |
+| `POST /auth/signup`                        | anyone with a valid referral code: account and full application                                                                                                |
+| `GET /me`                                  | signed in (any status): profile, application answers, `reviewNote`                                                                                             |
+| `POST /me/reapply`                         | rejected accounts only: a new application (same body as sign-up's application); back to pending. Rate-limited per account                                      |
 | `GET /me/referrals?cursor&limit`           | approved: the people who joined with **your own** code, with totals                                                                                            |
 | `GET /me/blogs`, `GET /me/comments`        | signed in: your own blogs and comments, newest first                                                                                                           |
 | `GET /users/:id`                           | anyone (approved users only; name, occupation, role, avatar, categories)                                                                                       |
@@ -133,22 +141,25 @@ per-admin limit of 60 requests a minute (429), and must come from an approved ad
 | ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
 | `GET /admin/overview`                           | pending applications: `{ pending: { total, members, ambassadors } }`                                        |
 | `GET /admin/members?q&status&role&cursor&limit` | everyone, admins → ambassadors → members, each by name; `q` = name or occupation; returns `counts` per role |
-| `GET /admin/members/:id`                        | full profile, status, who invited them, first page of who used their code                                   |
+| `GET /admin/members/:id`                        | full profile and application, status, note, decision `history`, who invited them, first page of referrals   |
 | `GET /admin/members/:id/referrals?cursor`       | the rest of the people who used their code                                                                  |
-| `POST /admin/members/:id/approve`               | body `{ reason? }`: approves a pending member/ambassador (409 if not pending)                               |
+| `POST /admin/members/:id/approve`               | body `{ note? }`: approves a pending member/ambassador (409 if not pending); the note is shown to them      |
+| `POST /admin/members/:id/reject`                | body `{ note }` (required): rejects a pending application (409 if not pending); they can reapply            |
 | `POST /admin/query-blogs`                       | starts a category's Query Blog (409 if the category has one)                                                |
 | `DELETE /admin/query-blogs/:id`                 | body `{ reason? }`: removes a Query Blog and, with it, its queries                                          |
 | `GET /admin/action-logs?action&adminId&cursor`  | the activity log, newest first (read-only; there is no edit or delete)                                      |
 
-Approvals and Query Blog creation and removal (through either route) are written to the
+Approvals, rejections (with their notes) and Query Blog creation and removal (through either route) are written to the
 append-only admin action log in the same transaction as the action itself.
 Lists are keyset-paginated: pass `nextCursor` back as `?cursor=`; `limit` has a default and
 a maximum (50, or 100 for referrals).
 
 Errors always look like `{ "error": { "code", "message", "requestId", "fields"? } }`, with
 400 for invalid input (`VALIDATION_FAILED`, per field), 401, 403, 404, 409 and 429.
-Deletes are soft (`deleted_at`): removed comments stay in the thread as placeholders, and a
-removed Query Blog takes its queries out of view with it.
+Deletes are soft (`deleted_at`): a removed comment stays in the thread only while live replies
+hang from it, as a placeholder with no text or author; a removed blog (or Query Blog) takes its
+comments out of view with it. Thirty days later `purge_soft_deleted()` (pg_cron, daily) deletes
+the data for good ([`docs/DATABASE.md`](docs/DATABASE.md)).
 `POST /blogs` takes `content`, the editor's formatted document; the server sanitizes it
 against an allow-list (`server/src/lib/richText.ts`) and stores its plain text as `body`.
 

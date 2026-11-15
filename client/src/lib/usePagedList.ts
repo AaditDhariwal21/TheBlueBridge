@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 
+import { extend, getSnapshot, load, updateQueryData, type Snapshot } from './queryCache';
+import { useCachedSnapshot, useLatest } from './useQuery';
+
 /** A cursor-paginated slice of a list. `nextCursor` is null at the end. */
 export interface Page<T, M = undefined> {
   items: T[];
@@ -10,14 +13,19 @@ export interface Page<T, M = undefined> {
   meta?: M;
 }
 
+/** Fetches `limit` items after `cursor` (null: from the start). */
 export type FetchPage<T, M = undefined> = (
   cursor: string | null,
+  limit: number,
   signal: AbortSignal,
 ) => Promise<Page<T, M>>;
 
 export interface PagedList<T, M = undefined> {
   items: T[];
-  /** `loading` covers the first page, the next page, and a reload after new filters. */
+  /**
+   * `loading`: the first page, the next page, or new filters whose results aren't cached
+   * yet (the previous items stay on screen meanwhile). Refreshes happen in place.
+   */
   status: 'loading' | 'ready' | 'error';
   hasMore: boolean;
   /** From the latest page; null when the API doesn't report it. */
@@ -30,71 +38,111 @@ export interface PagedList<T, M = undefined> {
   update: (change: (items: T[]) => T[]) => void;
 }
 
-/**
- * A cursor-paginated list fetched page by page ("Show more"). Not cached: lists using it
- * should be fresh when opened. `fetchPage` must be stable (module-level or memoized); a new
- * `fetchPage` (e.g. new filters) starts again from the first page. The previous items stay
- * on screen until the new ones arrive, so the layout doesn't jump, and the request for the
- * old filters is cancelled so a slow, stale response can never replace a newer one.
- */
-export function usePagedList<T, M = undefined>(fetchPage: FetchPage<T, M>): PagedList<T, M> {
-  const [source, setSource] = useState(() => fetchPage);
-  const [items, setItems] = useState<T[]>([]);
-  const [cursor, setCursor] = useState<string | null>(null);
-  const [total, setTotal] = useState<number | null>(null);
-  const [meta, setMeta] = useState<M | null>(null);
-  const [status, setStatus] = useState<PagedList<T, M>['status']>('loading');
-  const [request, setRequest] = useState<{ from: string | null; attempt: number }>({
-    from: null,
-    attempt: 0,
-  });
+/** How a list is cached: everything loaded so far. */
+export interface ListData<T, M = undefined> {
+  items: T[];
+  nextCursor: string | null;
+  total: number | null;
+  meta: M | null;
+}
 
-  if (source !== fetchPage) {
-    setSource(() => fetchPage);
-    setCursor(null);
-    setStatus('loading');
-    setRequest((r) => ({ from: null, attempt: r.attempt + 1 }));
-  }
+/** The API's largest page; a refresh of a long list is fetched in pages of this size. */
+const MAX_LIMIT = 50;
+
+/**
+ * A cursor-paginated list ("Show more"), cached under `key` (lib/queryCache.ts). Like
+ * useQuery it loads again on every mount and when the tab regains focus: the refresh
+ * fetches as many items as are on screen, from the start, so new items appear, removed
+ * ones go, and the list keeps its length and scroll position. New filters mean a new key;
+ * until their first page arrives, the previous items stay (dimmed by the caller).
+ */
+export function usePagedList<T, M = undefined>(
+  key: string,
+  fetchPage: FetchPage<T, M>,
+  options: { pageSize: number; firstPageSize?: number },
+): PagedList<T, M> {
+  const snapshot = useCachedSnapshot(key);
+  const fetchRef = useLatest(fetchPage);
+  const { pageSize, firstPageSize = pageSize } = options;
+
+  const refresh = useCallback(
+    async (signal: AbortSignal): Promise<ListData<T, M>> => {
+      const cached = listOf<T, M>(getSnapshot(key));
+      const target = Math.max(cached?.items.length ?? 0, firstPageSize);
+      const items: T[] = [];
+      let cursor: string | null = null;
+      let last: Page<T, M>;
+      do {
+        last = await fetchRef.current(cursor, Math.min(target - items.length, MAX_LIMIT), signal);
+        items.push(...last.items);
+        cursor = last.nextCursor;
+      } while (cursor !== null && items.length < target);
+      return { items, nextCursor: cursor, total: last.total ?? null, meta: last.meta ?? null };
+    },
+    [key, firstPageSize, fetchRef],
+  );
 
   useEffect(() => {
-    const controller = new AbortController();
-    source(request.from, controller.signal).then(
-      (page) => {
-        if (controller.signal.aborted) return;
-        setItems((current) => (request.from === null ? page.items : [...current, ...page.items]));
-        setCursor(page.nextCursor);
-        setTotal(page.total ?? null);
-        setMeta(page.meta ?? null);
-        setStatus('ready');
-      },
-      () => {
-        if (!controller.signal.aborted) setStatus('error');
-      },
-    );
-    return () => {
-      controller.abort();
-    };
-  }, [source, request]);
+    void load(key, refresh);
+  }, [key, refresh]);
+
+  const current = listOf<T, M>(snapshot);
+  // The last list shown, kept on screen while a new key's first page loads.
+  const [previous, setPrevious] = useState<ListData<T, M> | null>(null);
+  if (current && current !== previous) setPrevious(current);
 
   const loadMore = useCallback(() => {
-    if (cursor === null) return;
-    setStatus('loading');
-    setRequest((r) => ({ from: cursor, attempt: r.attempt + 1 }));
-  }, [cursor]);
+    void extend<ListData<T, M>>(key, async (list, signal) => {
+      if (list.nextCursor === null) return list;
+      const page = await fetchRef.current(list.nextCursor, pageSize, signal);
+      return {
+        items: [...list.items, ...page.items],
+        nextCursor: page.nextCursor,
+        total: page.total ?? null,
+        meta: page.meta ?? null,
+      };
+    });
+  }, [key, pageSize, fetchRef]);
 
   const retry = useCallback(() => {
-    setStatus('loading');
-    setRequest((r) => ({ ...r, attempt: r.attempt + 1 }));
-  }, []);
+    if (getSnapshot(key).failed === 'more') loadMore();
+    else void load(key, refresh);
+  }, [key, refresh, loadMore]);
 
+  const update = useCallback(
+    (change: (items: T[]) => T[]) => {
+      updateQueryData<ListData<T, M>>(key, (list) => ({ ...list, items: change(list.items) }));
+    },
+    [key],
+  );
+
+  if (!current) {
+    // The previous items are only a placeholder while loading: no "Show more" for them.
+    const shown = snapshot.failed ? null : previous;
+    return {
+      items: shown?.items ?? [],
+      status: snapshot.failed ? 'error' : 'loading',
+      hasMore: false,
+      total: shown?.total ?? null,
+      meta: shown?.meta ?? null,
+      loadMore,
+      retry,
+      update,
+    };
+  }
   return {
-    items,
-    status,
-    hasMore: cursor !== null,
-    total,
-    meta,
+    items: current.items,
+    status:
+      snapshot.pending === 'more' ? 'loading' : snapshot.failed === 'more' ? 'error' : 'ready',
+    hasMore: current.nextCursor !== null,
+    total: current.total,
+    meta: current.meta,
     loadMore,
     retry,
-    update: setItems,
+    update,
   };
+}
+
+function listOf<T, M>(snapshot: Snapshot): ListData<T, M> | null {
+  return snapshot.hasData ? (snapshot.data as ListData<T, M>) : null;
 }

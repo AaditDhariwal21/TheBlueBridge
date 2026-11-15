@@ -68,6 +68,9 @@ export default tseslint.config(
     },
   },
 
+  // -------------------------------------------- shared (imported by client and server)
+  { files: ['shared/**/*.ts'], ...typescript },
+
   // ---------------------------------------------------------------- server
   {
     files: ['server/{src,test}/**/*.ts'],

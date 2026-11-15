@@ -1,23 +1,14 @@
 import { z } from 'zod';
 
-import { singleLineText } from '../../lib/validation.ts';
-
-/** Spaces, hyphens, dots and brackets are dropped; the rest must be E.164. */
-const phoneNumber = z
-  .string({ error: 'Enter your phone number.' })
-  .transform((value) => value.replace(/[\s().-]/g, ''))
-  .pipe(
-    z.string().regex(/^\+[1-9][0-9]{7,14}$/, {
-      error: 'Enter your number with its country code, like +91 98765 43210.',
-    }),
-  );
+import { EMAIL_MAX, PASSWORD_LIMITS } from '../../../../shared/limits.ts';
+import { applicationFields, checkApplication, clearUnusedOther } from '../users/users.schemas.ts';
 
 /** Supabase hashes with bcrypt, which reads only the first 72 bytes. */
 const password = z
   .string({ error: 'Choose a password.' })
-  .min(10, { error: 'Use at least 10 characters.' })
-  .refine((value) => Buffer.byteLength(value, 'utf8') <= 72, {
-    error: 'Keep your password under 72 characters.',
+  .min(PASSWORD_LIMITS.min, { error: `Use at least ${PASSWORD_LIMITS.min} characters.` })
+  .refine((value) => Buffer.byteLength(value, 'utf8') <= PASSWORD_LIMITS.maxBytes, {
+    error: `Keep your password under ${PASSWORD_LIMITS.maxBytes} characters.`,
   });
 
 /** Checked by the service; the format is not revealed separately from validity. */
@@ -28,6 +19,7 @@ const referralCode = z
 
 export const validateReferralCodeBody = z.strictObject({ code: referralCode });
 
+/** The account (email, password), the invitation, and the whole application. */
 export const signupBody = z
   .strictObject({
     referralCode,
@@ -35,30 +27,11 @@ export const signupBody = z
       .string({ error: 'Enter your email address.' })
       .trim()
       .toLowerCase()
-      .pipe(z.email({ error: 'Enter a valid email address.' }).max(254)),
+      .pipe(z.email({ error: 'Enter a valid email address.' }).max(EMAIL_MAX)),
     password,
-    name: singleLineText(1, 100, 'Enter your name.'),
-    phoneNumber,
-    occupation: singleLineText(1, 100, 'Enter your occupation.'),
-    appliedRole: z.enum(['member', 'ambassador'], { error: 'Choose member or ambassador.' }),
-    categoryIds: z
-      .array(z.uuid({ error: 'Choose categories from the list.' }))
-      .max(2)
-      .default([]),
+    ...applicationFields,
   })
-  .superRefine((input, ctx) => {
-    const issue = (message: string) => {
-      ctx.addIssue({ code: 'custom', path: ['categoryIds'], message });
-    };
-    if (input.appliedRole === 'ambassador' && input.categoryIds.length === 0) {
-      issue('Choose one or two categories.');
-    }
-    if (input.appliedRole === 'member' && input.categoryIds.length > 0) {
-      issue('Only ambassadors choose categories.');
-    }
-    if (new Set(input.categoryIds).size !== input.categoryIds.length) {
-      issue('Choose two different categories.');
-    }
-  });
+  .superRefine(checkApplication)
+  .transform(clearUnusedOther);
 
 export type SignupInput = z.output<typeof signupBody>;

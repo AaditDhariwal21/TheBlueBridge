@@ -1,6 +1,10 @@
 import type { AdminAction, AdminTargetType, Db } from '../../db/schema.ts';
 import { encodeCursor, paginate, type Cursor } from '../../lib/cursor.ts';
-import { insertAdminAction, selectAdminActions } from './adminLog.repository.ts';
+import {
+  insertAdminAction,
+  selectAdminActions,
+  selectTargetActions,
+} from './adminLog.repository.ts';
 
 /** admin_action_logs_reason_check. */
 export const ADMIN_REASON_MAX = 500;
@@ -9,6 +13,8 @@ export const ADMIN_REASON_MAX = 500;
 const TARGET_TYPE: Record<AdminAction, AdminTargetType> = {
   member_approved: 'user',
   ambassador_approved: 'user',
+  member_rejected: 'user',
+  ambassador_rejected: 'user',
   query_blog_created: 'blog',
   query_blog_deleted: 'blog',
 };
@@ -40,8 +46,21 @@ export interface AdminActionDto {
   action: AdminAction;
   admin: { id: string; name: string };
   target: { type: AdminTargetType; id: string; label: string };
+  /** The admin's note or reason, when they gave one. */
   reason: string | null;
   createdAt: string;
+}
+
+/** How many past decisions an applicant's record shows. */
+const HISTORY_LIMIT = 50;
+
+/**
+ * Everything logged about one user, newest first: their approvals and rejections, each with
+ * the admin and the note. Survives reapplying, which clears only the current note.
+ */
+export async function listUserHistory(db: Db, userId: string): Promise<AdminActionDto[]> {
+  const rows = await selectTargetActions(db, userId, HISTORY_LIMIT);
+  return rows.map(toActionDto);
 }
 
 export async function listAdminActions(
@@ -57,15 +76,16 @@ export async function listAdminActions(
   const { items, nextCursor } = paginate(rows, query.limit, (row) =>
     encodeCursor({ createdAt: row.created_at_key, id: row.log_id }),
   );
+  return { entries: items.map(toActionDto), nextCursor };
+}
+
+function toActionDto(row: Awaited<ReturnType<typeof selectTargetActions>>[number]): AdminActionDto {
   return {
-    entries: items.map((row) => ({
-      id: row.log_id,
-      action: row.action,
-      admin: { id: row.admin_id, name: row.admin_name },
-      target: { type: row.target_type, id: row.target_id, label: row.target_label },
-      reason: row.reason,
-      createdAt: row.created_at.toISOString(),
-    })),
-    nextCursor,
+    id: row.log_id,
+    action: row.action,
+    admin: { id: row.admin_id, name: row.admin_name },
+    target: { type: row.target_type, id: row.target_id, label: row.target_label },
+    reason: row.reason,
+    createdAt: row.created_at.toISOString(),
   };
 }

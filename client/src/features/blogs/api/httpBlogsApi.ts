@@ -49,7 +49,8 @@ interface QueryBlogDto {
 interface CommentDto {
   id: string;
   parentId: string | null;
-  author: AuthorDto;
+  /** Null for a removed comment (a placeholder that holds its replies). */
+  author: AuthorDto | null;
   body: string | null;
   removed: boolean;
   createdAt: string;
@@ -88,7 +89,7 @@ const toComment = (subject: CommentSubject, dto: CommentDto): Comment => ({
   id: dto.id,
   subject,
   parentId: dto.parentId,
-  author: toUser(dto.author),
+  author: dto.author && toUser(dto.author),
   body: dto.body,
   removed: dto.removed,
   createdAt: dto.createdAt,
@@ -137,8 +138,8 @@ async function write(method: 'POST' | 'DELETE', url: string, body?: unknown): Pr
 }
 
 /** One author's blogs (signed-in requests: the viewer's own, or a member's on their profile). */
-async function blogsBy(url: string): Promise<Page<MyBlog>> {
-  const data = (await apiRequest(url, { token: await getAccessToken() })) as {
+async function blogsBy(url: string, signal?: AbortSignal): Promise<Page<MyBlog>> {
+  const data = (await apiRequest(url, { token: await getAccessToken(), signal })) as {
     blogs: (BlogDto & { type: MyBlog['type'] })[];
     nextCursor: string | null;
   };
@@ -149,8 +150,8 @@ async function blogsBy(url: string): Promise<Page<MyBlog>> {
 }
 
 /** One author's comments, queries and replies, with the blog each is on. */
-async function commentsBy(url: string): Promise<Page<MyComment>> {
-  const data = (await apiRequest(url, { token: await getAccessToken() })) as {
+async function commentsBy(url: string, signal?: AbortSignal): Promise<Page<MyComment>> {
+  const data = (await apiRequest(url, { token: await getAccessToken(), signal })) as {
     comments: MyComment[];
     nextCursor: string | null;
   };
@@ -166,8 +167,10 @@ export const httpBlogsApi: BlogsApi = {
     return { items: data.blogs.map(toBlog), nextCursor: data.nextCursor };
   },
 
-  async getBlog(id) {
-    const data = await orNull(apiRequest(path('blogs', id)) as Promise<{ blog: BlogDto }>);
+  async getBlog(id, signal) {
+    const data = await orNull(
+      apiRequest(path('blogs', id), { signal }) as Promise<{ blog: BlogDto }>,
+    );
     return data && toBlog(data.blog);
   },
 
@@ -180,8 +183,10 @@ export const httpBlogsApi: BlogsApi = {
     await write('DELETE', path('blogs', id));
   },
 
-  async listComments(subject) {
-    const data = (await apiRequest(path('blogs', blogIdOf(subject), 'comments'))) as {
+  async listComments(subject, signal) {
+    const data = (await apiRequest(path('blogs', blogIdOf(subject), 'comments'), {
+      signal,
+    })) as {
       comments: CommentDto[];
     };
     return data.comments.map((dto) => toComment(subject, dto));
@@ -199,14 +204,16 @@ export const httpBlogsApi: BlogsApi = {
     await write('DELETE', path('blogs', blogIdOf(subject), 'comments', commentId));
   },
 
-  async listQueryBlogs() {
-    const data = (await apiRequest('/query-blogs')) as { queryBlogs: QueryBlogDto[] };
+  async listQueryBlogs(signal) {
+    const data = (await apiRequest('/query-blogs', { signal })) as {
+      queryBlogs: QueryBlogDto[];
+    };
     return data.queryBlogs.map(toQueryBlog);
   },
 
-  async getQueryBlog(id) {
+  async getQueryBlog(id, signal) {
     const data = await orNull(
-      apiRequest(path('query-blogs', id)) as Promise<{ queryBlog: QueryBlogDto }>,
+      apiRequest(path('query-blogs', id), { signal }) as Promise<{ queryBlog: QueryBlogDto }>,
     );
     return data && toQueryBlog(data.queryBlog);
   },
@@ -220,10 +227,10 @@ export const httpBlogsApi: BlogsApi = {
     await write('DELETE', path('admin', 'query-blogs', id), { reason });
   },
 
-  listMyBlogs: (page) => blogsBy(`/me/blogs?${pageQuery(page)}`),
-  listMyComments: (page) => commentsBy(`/me/comments?${pageQuery(page)}`),
-  listAuthorBlogs: ({ authorId, ...page }) =>
-    blogsBy(`${path('members', authorId, 'blogs')}?${pageQuery(page)}`),
-  listAuthorComments: ({ authorId, ...page }) =>
-    commentsBy(`${path('members', authorId, 'comments')}?${pageQuery(page)}`),
+  listMyBlogs: (page, signal) => blogsBy(`/me/blogs?${pageQuery(page)}`, signal),
+  listMyComments: (page, signal) => commentsBy(`/me/comments?${pageQuery(page)}`, signal),
+  listAuthorBlogs: ({ authorId, ...page }, signal) =>
+    blogsBy(`${path('members', authorId, 'blogs')}?${pageQuery(page)}`, signal),
+  listAuthorComments: ({ authorId, ...page }, signal) =>
+    commentsBy(`${path('members', authorId, 'comments')}?${pageQuery(page)}`, signal),
 };

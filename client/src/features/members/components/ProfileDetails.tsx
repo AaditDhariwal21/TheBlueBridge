@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 
 import { CategoryDot } from '../../../components/ui/CategoryDot';
+import { applicationRows, type DetailRow } from '../../application/detailsRows';
 import type { MemberProfile } from '../types';
 
 const MONTH_YEAR = new Intl.DateTimeFormat('en-IN', { month: 'long', year: 'numeric' });
@@ -8,7 +9,10 @@ const MONTH_YEAR = new Intl.DateTimeFormat('en-IN', { month: 'long', year: 'nume
 const LINK =
   'text-text underline decoration-accent-soft underline-offset-4 wrap-anywhere hover:decoration-text';
 
-/** A profile's details as a definition list: contact, categories, joined. */
+/**
+ * A profile's details as a definition list: contact, application answers (where she lives,
+ * Jodhpur connection, education and work, journey), categories, joined.
+ */
 export function ProfileDetails({
   profile,
   extra = [],
@@ -16,11 +20,12 @@ export function ProfileDetails({
 }: {
   profile: MemberProfile;
   /** Further rows, e.g. an admin's view of status. */
-  extra?: [string, ReactNode][];
+  extra?: DetailRow[];
   /** When the occupation is already shown above the details. */
   omitOccupation?: boolean;
 }) {
-  const rows: [string, ReactNode][] = [
+  const rows: DetailRow[] = omitOccupation ? [] : [['Occupation', profile.occupation]];
+  rows.push(
     [
       'Phone',
       <a key="phone" href={`tel:${profile.phoneNumber}`} className={LINK}>
@@ -37,8 +42,8 @@ export function ProfileDetails({
         '—'
       ),
     ],
-  ];
-  if (!omitOccupation) rows.unshift(['Occupation', profile.occupation]);
+    ...applicationRows(profile),
+  );
   if (profile.role === 'ambassador' && profile.categories.length > 0) {
     rows.push([
       'Ambassador for',
@@ -53,13 +58,17 @@ export function ProfileDetails({
     ]);
   }
   rows.push(['Joined', MONTH_YEAR.format(new Date(profile.joinedAt))], ...extra);
+  return <DetailList rows={rows} />;
+}
 
+/** Term and detail side by side from sm up, stacked on phones. */
+export function DetailList({ rows }: { rows: readonly [string, ReactNode][] }) {
   return (
     <dl className="grid gap-x-6 gap-y-3 text-sm sm:grid-cols-[auto_1fr]">
       {rows.map(([term, detail]) => (
         <div key={term} className="contents">
           <dt className="text-text-muted">{term}</dt>
-          <dd className="-mt-2 min-w-0 sm:mt-0">{detail}</dd>
+          <dd className="-mt-2 min-w-0 wrap-break-word sm:mt-0">{detail}</dd>
         </div>
       ))}
     </dl>

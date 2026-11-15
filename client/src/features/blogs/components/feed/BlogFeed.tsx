@@ -22,8 +22,9 @@ interface BlogFeedProps {
 }
 
 /**
- * The Feed with search and a category filter above it. Without either it is the cached,
- * newest-first feed; with them, live results. Searching waits for a pause in typing and
+ * The Feed with search and a category filter above it. Without either it is the
+ * newest-first feed; with them, results for that search. Both are cached and refreshed in
+ * place (lib/queryCache.ts). Searching waits for a pause in typing and
  * at least two characters. The search lives in this component's state, not the URL.
  */
 export function BlogFeed({ emptyAction }: BlogFeedProps) {
@@ -60,18 +61,18 @@ export function BlogFeed({ emptyAction }: BlogFeedProps) {
 }
 
 function LatestBlogs({ emptyAction }: BlogFeedProps) {
-  const { blogs, status, hasMore, loadMore, justPublishedId, markHighlightSeen } = useFeed();
+  const feed = useFeed();
   return (
     <FeedList
       label="Blogs, newest first"
-      blogs={blogs}
-      loading={status === 'loading' || status === 'idle'}
-      failed={status === 'error'}
-      hasMore={hasMore}
-      loadMore={loadMore}
-      retry={loadMore}
-      highlightId={justPublishedId}
-      onHighlightDone={markHighlightSeen}
+      blogs={feed.items}
+      loading={feed.status === 'loading'}
+      failed={feed.status === 'error'}
+      hasMore={feed.hasMore}
+      loadMore={feed.loadMore}
+      retry={feed.retry}
+      highlightId={feed.justPublishedId}
+      onHighlightDone={feed.markHighlightSeen}
       empty={
         <StateMessage title="No blogs yet" action={emptyAction}>
           Be the first to share a story, a lesson or a piece of advice with the community.

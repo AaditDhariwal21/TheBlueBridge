@@ -13,7 +13,7 @@ const OPTIONS = [
     value: 'ambassador',
     label: 'Ambassador',
     description:
-      'Everything a member does, plus answering questions and keeping discussions healthy in one or two categories you know well.',
+      'Everything a member does, plus answering questions and keeping discussions healthy in up to three categories you know well.',
   },
 ] as const satisfies readonly { value: AppliedRole; label: string; description: string }[];
 
@@ -28,7 +28,7 @@ export function RoleChoice({ value, onChange, error }: RoleChoiceProps) {
   const errorId = useId();
   return (
     <fieldset aria-describedby={error ? errorId : undefined}>
-      <legend className="text-sm text-text-muted">How would you like to join?</legend>
+      <legend className="text-sm text-text">How would you like to join?</legend>
       <div className="mt-2 grid gap-3 sm:grid-cols-2">
         {OPTIONS.map((option) => (
           <label key={option.value} className="relative flex">

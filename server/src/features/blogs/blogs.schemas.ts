@@ -1,23 +1,11 @@
 import { z } from 'zod';
 
+import { BLOG_LIMITS } from '../../../../shared/limits.ts';
 import { cursorCodec, cursorParam, pgTimestamp, type Cursor } from '../../lib/cursor.ts';
 import { parseRichDoc, toPlainText, type RichDoc } from '../../lib/richText.ts';
 import { toPrefixTsQuery } from '../../lib/searchQuery.ts';
 import { normalizeSingleLine } from '../../lib/text.ts';
 import { multilineText, singleLineText } from '../../lib/validation.ts';
-
-/** Input limits. The client mirrors these (client/src/features/blogs/model/validation.ts). */
-export const BLOG_LIMITS = {
-  titleMin: 10,
-  titleMax: 140,
-  bodyMin: 80,
-  bodyMax: 12_000,
-  maxCategories: 5,
-  queryTitleMin: 3,
-  queryTitleMax: 80,
-  queryDescriptionMin: 10,
-  queryDescriptionMax: 500,
-} as const;
 
 /** GET /me/blogs and /me/comments. */
 export const listFeedQuery = z.strictObject({

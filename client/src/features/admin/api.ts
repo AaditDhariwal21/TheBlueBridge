@@ -21,10 +21,14 @@ async function adminRequest(
   return apiRequest(`/admin${path}`, { ...options, token: await getAccessToken() });
 }
 
-const PAGE_SIZE = 20;
+export const ADMIN_PAGE_SIZE = 20;
 
-function pageParams(cursor: string | null, extra: Record<string, string | null> = {}): string {
-  const params = new URLSearchParams({ limit: String(PAGE_SIZE) });
+function pageParams(
+  cursor: string | null,
+  limit: number,
+  extra: Record<string, string | null> = {},
+): string {
+  const params = new URLSearchParams({ limit: String(limit) });
   if (cursor !== null) params.set('cursor', cursor);
   for (const [key, value] of Object.entries(extra)) if (value) params.set(key, value);
   return params.toString();
@@ -38,9 +42,10 @@ export async function fetchOverview(signal: AbortSignal): Promise<PendingCounts>
 export async function fetchMembers(
   filters: MemberFilters,
   cursor: string | null,
+  limit: number,
   signal: AbortSignal,
 ): Promise<Page<AdminMemberSummary, Record<Role, number>>> {
-  const query = pageParams(cursor, {
+  const query = pageParams(cursor, limit, {
     q: filters.q || null,
     status: filters.status,
     role: filters.role,
@@ -59,27 +64,44 @@ export async function fetchMember(id: string, signal: AbortSignal): Promise<Admi
   return (await adminRequest(memberPath(id), { signal })) as AdminMember;
 }
 
-export async function fetchMemberReferrals(id: string, cursor: string): Promise<Page<Referral>> {
-  const data = (await adminRequest(
-    `${memberPath(id)}/referrals?${pageParams(cursor)}`,
-  )) as ReferralsDto;
+export async function fetchMemberReferrals(
+  id: string,
+  cursor: string | null,
+  limit: number,
+  signal: AbortSignal,
+): Promise<Page<Referral>> {
+  const data = (await adminRequest(`${memberPath(id)}/referrals?${pageParams(cursor, limit)}`, {
+    signal,
+  })) as ReferralsDto;
   return toReferralsPage(data);
 }
 
-/** Approves a pending member or ambassador; resolves to their updated record. */
-export async function approveMember(id: string, reason: string | null): Promise<AdminMember> {
+/**
+ * Approves a pending member or ambassador, with an optional note they'll see as a message
+ * from the team; resolves to their updated record.
+ */
+export async function approveMember(id: string, note: string | null): Promise<AdminMember> {
   return (await adminRequest(`${memberPath(id)}/approve`, {
     method: 'POST',
-    body: { reason },
+    body: { note },
+  })) as AdminMember;
+}
+
+/** Rejects a pending application with the required note that tells her why. */
+export async function rejectMember(id: string, note: string): Promise<AdminMember> {
+  return (await adminRequest(`${memberPath(id)}/reject`, {
+    method: 'POST',
+    body: { note },
   })) as AdminMember;
 }
 
 export async function fetchActivity(
   action: AdminAction | null,
   cursor: string | null,
+  limit: number,
   signal: AbortSignal,
 ): Promise<Page<AdminActionEntry>> {
-  const data = (await adminRequest(`/action-logs?${pageParams(cursor, { action })}`, {
+  const data = (await adminRequest(`/action-logs?${pageParams(cursor, limit, { action })}`, {
     signal,
   })) as { entries: AdminActionEntry[]; nextCursor: string | null };
   return { items: data.entries, nextCursor: data.nextCursor };

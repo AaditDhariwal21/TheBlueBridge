@@ -4,17 +4,22 @@ import type { Db, UserRole, UserStatus } from '../../db/schema.ts';
 import { paginate, type Cursor } from '../../lib/cursor.ts';
 import { AppError } from '../../lib/errors.ts';
 import type { Viewer } from '../../middleware/authenticate.ts';
-import { canApproveMember, canUseAdminPanel } from '../../policies/permissions.ts';
-import { logAdminAction } from '../adminLog/adminLog.service.ts';
+import { canReviewApplication, canUseAdminPanel } from '../../policies/permissions.ts';
+import {
+  listUserHistory,
+  logAdminAction,
+  type AdminActionDto,
+} from '../adminLog/adminLog.service.ts';
 import type { Category } from '../categories/categories.service.ts';
 import { listReferrals, type ReferralsDto } from '../referrals/referrals.service.ts';
+import { getApplicationDetails, type ApplicationDetailsDto } from '../users/users.service.ts';
 import {
   countMembers,
   countPendingByRole,
   findApprovedProfile,
   findMemberForAdmin,
   lockApplicant,
-  markApproved,
+  markReviewed,
   selectMembers,
   type MemberFilter,
 } from './members.repository.ts';
@@ -23,13 +28,13 @@ import { directoryCursor, type DirectoryCursor } from './members.schemas.ts';
 /* ------------------------------------------------------------------ serializer */
 
 /** A member's profile as other people see it. */
-export interface PublicProfileDto {
+export interface PublicProfileDto extends ApplicationDetailsDto {
   id: string;
   name: string;
   occupation: string;
   role: UserRole;
   avatarUrl: string | null;
-  /** An ambassador's 1 or 2 categories; empty for everyone else. */
+  /** An ambassador's 1 to 3 categories; empty for everyone else. */
   categories: Category[];
   phoneNumber: string;
   /** From Supabase Auth; null only if the Auth user has no email. */
@@ -53,10 +58,12 @@ interface ProfileRow {
  * THE serializer for one person's profile shown to someone else. Every endpoint that
  * returns profile data goes through it (or takes a subset of its output), so privacy
  * rules, such as hiding phone or email, change here and nowhere else.
- * For now it returns every profile field.
+ * For now it returns every profile field, application answers included. The review note is
+ * not profile data: only the person herself and admins see it.
  */
-export function toPublicProfile(row: ProfileRow): PublicProfileDto {
+export function toPublicProfile(row: ProfileRow, details: ApplicationDetailsDto): PublicProfileDto {
   return {
+    ...details,
     id: row.user_id,
     name: row.name,
     occupation: row.occupation,
@@ -149,9 +156,13 @@ export async function getCommunitySize(db: Db): Promise<number> {
 
 /** An approved member's full profile. Unknown, unapproved and malformed ids all get one 404. */
 export async function getMemberProfile(db: Db, id: string): Promise<PublicProfileDto> {
-  const row = userId.safeParse(id).success ? await findApprovedProfile(db, id) : undefined;
-  if (!row) throw new AppError('NOT_FOUND', 'This member doesn’t exist or isn’t active.');
-  return toPublicProfile(row);
+  const [row, details] = userId.safeParse(id).success
+    ? await Promise.all([findApprovedProfile(db, id), getApplicationDetails(db, id)])
+    : [];
+  if (!row || !details) {
+    throw new AppError('NOT_FOUND', 'This member doesn’t exist or isn’t active.');
+  }
+  return toPublicProfile(row, details);
 }
 
 /** GET /users/:id, open to anyone: never email, phone or status. */
@@ -172,7 +183,14 @@ export interface AdminMemberSummaryDto extends MemberSummaryDto {
 }
 
 export interface AdminMemberDto {
-  member: PublicProfileDto & { status: UserStatus; reviewedAt: string | null };
+  member: PublicProfileDto & {
+    status: UserStatus;
+    reviewedAt: string | null;
+    /** The latest review's note, as the member sees it. */
+    reviewNote: string | null;
+  };
+  /** Every logged decision about them (approvals, rejections), newest first, with notes. */
+  history: AdminActionDto[];
   /** Whose referral code they joined with; null for the root admin. */
   referredBy: { id: string; name: string; role: UserRole } | null;
   /** The people who joined with their code: the first page and the totals. */
@@ -210,14 +228,21 @@ export async function listMembersForAdmin(
 }
 
 export async function getMemberForAdmin(db: Db, id: string): Promise<AdminMemberDto> {
-  const row = userId.safeParse(id).success ? await findMemberForAdmin(db, id) : undefined;
-  if (!row) throw new AppError('NOT_FOUND', 'This member doesn’t exist.');
+  if (!userId.safeParse(id).success) throw new AppError('NOT_FOUND', 'This member doesn’t exist.');
+  const [row, details, history] = await Promise.all([
+    findMemberForAdmin(db, id),
+    getApplicationDetails(db, id),
+    listUserHistory(db, id),
+  ]);
+  if (!row || !details) throw new AppError('NOT_FOUND', 'This member doesn’t exist.');
   return {
     member: {
-      ...toPublicProfile(row),
+      ...toPublicProfile(row, details),
       status: row.status,
       reviewedAt: row.reviewed_at?.toISOString() ?? null,
+      reviewNote: row.review_note,
     },
+    history,
     referredBy:
       row.referrer_id === null || row.referrer_name === null || row.referrer_role === null
         ? null
@@ -237,34 +262,69 @@ export async function listMemberReferrals(
 }
 
 /**
- * Approves a pending member or ambassador. The role stays what they applied for. The
- * approval and its log entry are one transaction, with the applicant's row locked first.
+ * Approves a pending member or ambassador, with an optional note for them. The role stays
+ * what they applied for.
  */
-export async function approveMember(
+export function approveMember(
   db: Db,
   viewer: Viewer,
   id: string,
-  reason: string | null,
+  note: string | null,
 ): Promise<AdminMemberDto> {
-  if (!canUseAdminPanel(viewer)) throw new AppError('FORBIDDEN', 'Only admins can approve.');
+  return reviewApplication(db, viewer, id, { status: 'approved', note });
+}
+
+/**
+ * Rejects a pending application with a note that tells the applicant why. She can still sign
+ * in, read the note and reapply (POST /me/reapply).
+ */
+export function rejectMember(
+  db: Db,
+  viewer: Viewer,
+  id: string,
+  note: string,
+): Promise<AdminMemberDto> {
+  return reviewApplication(db, viewer, id, { status: 'rejected', note });
+}
+
+/**
+ * The decision and its log entry (with the note) are one transaction, with the applicant's
+ * row locked first, so two admins deciding at once are serialised and the second sees the
+ * first's result.
+ */
+async function reviewApplication(
+  db: Db,
+  viewer: Viewer,
+  id: string,
+  decision: { status: 'approved' | 'rejected'; note: string | null },
+): Promise<AdminMemberDto> {
+  if (!canUseAdminPanel(viewer)) {
+    throw new AppError('FORBIDDEN', 'Only admins can review applications.');
+  }
   if (!userId.safeParse(id).success) throw new AppError('NOT_FOUND', 'This member doesn’t exist.');
   await db.transaction().execute(async (trx) => {
     const applicant = await lockApplicant(trx, id);
     if (!applicant) throw new AppError('NOT_FOUND', 'This member doesn’t exist.');
-    if (!canApproveMember(viewer, applicant)) {
-      throw new AppError('CONFLICT', 'This account isn’t waiting for approval.');
+    if (!canReviewApplication(viewer, applicant)) {
+      throw new AppError('CONFLICT', 'This account isn’t waiting for a decision.');
     }
-    await markApproved(trx, id, viewer.id);
+    await markReviewed(trx, id, { ...decision, reviewerId: viewer.id });
     await logAdminAction(trx, {
       adminId: viewer.id,
-      action: applicant.role === 'ambassador' ? 'ambassador_approved' : 'member_approved',
+      action: REVIEW_ACTIONS[decision.status][applicant.role === 'ambassador' ? 1 : 0],
       targetId: id,
       targetLabel: applicant.name,
-      reason,
+      reason: decision.note,
     });
   });
   return getMemberForAdmin(db, id);
 }
+
+/** What the log calls each decision: [for a member, for an ambassador]. */
+const REVIEW_ACTIONS = {
+  approved: ['member_approved', 'ambassador_approved'],
+  rejected: ['member_rejected', 'ambassador_rejected'],
+} as const;
 
 /** For the admin overview: how many applications wait, by the role applied for. */
 export async function getPendingCounts(

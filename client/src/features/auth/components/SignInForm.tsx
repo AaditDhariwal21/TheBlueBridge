@@ -5,7 +5,7 @@ import { Field } from '../../../components/ui/Field';
 import { Input } from '../../../components/ui/Input';
 import { useAuth } from '../authContext';
 import { useFocusFirstInvalid } from '../useFocusFirstInvalid';
-import { EMAIL_MAX } from '../validation';
+import { EMAIL_MAX } from '../../../../../shared/limits';
 import { PasswordInput } from './PasswordInput';
 
 type Failure = 'invalid' | 'unavailable' | null;

@@ -16,6 +16,8 @@ export const pendingMembersPath = `${ADMIN_PATH}/members?status=pending`;
 export const ACTION_LABELS: Record<AdminAction, { verb: string; filter: string }> = {
   member_approved: { verb: 'approved member', filter: 'Member approved' },
   ambassador_approved: { verb: 'approved ambassador', filter: 'Ambassador approved' },
+  member_rejected: { verb: 'did not approve member', filter: 'Member not approved' },
+  ambassador_rejected: { verb: 'did not approve ambassador', filter: 'Ambassador not approved' },
   query_blog_created: { verb: 'started the Query Blog', filter: 'Query Blog started' },
   query_blog_deleted: { verb: 'removed the Query Blog', filter: 'Query Blog removed' },
 };

@@ -130,8 +130,9 @@ export function CommentsSection({ subject, copy, authorId, categoryIds }: Commen
       let node = tree.byId.get(commentId);
       while (node?.comment.parentId) node = tree.byId.get(node.comment.parentId);
       if (!node || queryCategoryId === undefined) return false;
+      // A removed query has no author: only the topic's ambassadors and admins may answer.
       return canReplyUnderQuery(actor, {
-        authorId: node.comment.author.id,
+        authorId: node.comment.author?.id ?? null,
         categoryId: queryCategoryId,
       });
     },
@@ -185,7 +186,7 @@ export function CommentsSection({ subject, copy, authorId, categoryIds }: Commen
     subject.kind === 'blog'
       ? plural(comments.length, one, many)
       : plural(tree.roots.length, one, many);
-  const loading = status === 'loading' || status === 'idle';
+  const loading = status === 'loading';
 
   let body;
   if (status === 'error') {

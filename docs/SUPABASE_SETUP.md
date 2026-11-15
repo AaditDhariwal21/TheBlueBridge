@@ -163,7 +163,7 @@ Go to **Authentication → Sign In / Providers** ([link](https://supabase.com/da
 | **Email** provider                     | Enabled                | Email + password sign-in. On by default.                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | **Allow new users to sign up**         | **OFF**                | When on, anyone holding the publishable key (which is public by design) can create an Auth account by calling Supabase's signup endpoint directly, skipping our referral check. Our API would still refuse them (no profile → 401), but they'd fill your Auth user list and could probe emails. **Off** means only the server, using the secret key's admin API, can create users, and it only does so after validating a referral code. The admin API is not affected by this switch. |
 | **Confirm email**                      | Leave ON               | Normally makes self-signup users click an emailed link before they can sign in. Our server creates users as already confirmed (`email_confirm: true`), because **admin approval is the verification step**, so no email is sent and this setting has no effect on our flow. Trade-off: the email address isn't proven to belong to the applicant. Admins should sanity-check applications before approving them.                                                                       |
-| **Minimum password length**            | **10**                 | Match the API (`server/src/features/auth/auth.schemas.ts`), which also requires 10. Length beats character rules for real-world strength.                                                                                                                                                                                                                                                                                                                                              |
+| **Minimum password length**            | **6**                  | Match the API, which requires 6 (`PASSWORD_LIMITS` in `shared/limits.ts`). Supabase checks this separately: if it is higher than the API's, sign-up fails for shorter passwords with "Choose a stronger password."                                                                                                                                                                                                                                                                     |
 | **Password requirements** (characters) | No required characters | Optional. If you require character classes, Supabase rejects weaker passwords at signup and the API shows "Choose a stronger password." on the password field. Prefer length.                                                                                                                                                                                                                                                                                                          |
 | **Leaked password protection**         | ON when on Pro         | Rejects passwords found in public breach lists (HaveIBeenPwned). Pro plan and above.                                                                                                                                                                                                                                                                                                                                                                                                   |
 | **Allow anonymous sign-ins**           | OFF                    | (Authentication → Settings, [link](https://supabase.com/dashboard/project/_/auth)) We have no anonymous users.                                                                                                                                                                                                                                                                                                                                                                         |
@@ -224,7 +224,13 @@ npm run db:migrate -w server   # → Applied: 0001_core_schema.sql, … 0005_cat
 npm run db:seed -w server      # → Categories inserted or updated: 5
 ```
 
-Both are safe to run again ("Already up to date."; the seed just re-applies the colours). Migrations
+Both are safe to run again ("Already up to date."; the seed just re-applies the colours).
+Migration 0011 also enables the **pg_cron** extension and schedules the daily purge of
+soft-deleted content (see [DATABASE.md](DATABASE.md#soft-delete-and-the-30-day-purge-0011)); in
+Supabase this needs no dashboard step. Afterwards **Database → Extensions** lists `pg_cron` as
+enabled and **Integrations → Cron** shows the job `purge-soft-deleted`. If the migration ever
+fails on `create extension pg_cron` (a permissions change on Supabase's side), enable it in
+**Database → Extensions**, then run `npm run db:migrate -w server` again. Migrations
 are plain SQL in `server/src/db/migrations/`, applied in order, each in a transaction, and
 recorded in `public.schema_migrations`. In the dashboard, **Table Editor** now shows the
 tables, each marked as RLS-enabled.
@@ -242,7 +248,7 @@ Nobody can sign up without a referral code, so the first admin (the "root") is c
 hand. Every later approval happens in the admin panel (step 9).
 
 1. **Authentication → Users → Add user → Create new user.** Enter your email and a strong
-   password (10+ characters), tick **Auto Confirm User**, then **Create user**.
+   password (at least 6 characters; longer is safer for an admin), tick **Auto Confirm User**, then **Create user**.
 2. **SQL Editor → New query.** Paste [`server/src/db/manual/create-first-admin.sql`](../server/src/db/manual/create-first-admin.sql),
    replace the four `EDIT` values (your Auth email, name, phone with country code,
    occupation), and click **Run**.
@@ -263,10 +269,13 @@ is needed.
 
 Sign in as an admin, open **Account → Go to Admin Panel** (`/adminpanel`), then
 **Overview → Review applications**. Open an applicant, check their details and who invited
-them, and press **Approve** (optionally with a short note). The approval sets
-`status = 'approved'`, `reviewed_by` = you and `reviewed_at` = now, and is recorded in the
-panel's **Activity log** in the same transaction. The role stays what they applied for
-(member or ambassador, with their categories).
+them, and earlier decisions if they reapplied. Press **Approve** (with an optional note) or
+**Reject** (with a required note). The applicant sees the note on their account page as a
+"Message from the Blue Bridge team". The decision sets `status`, `review_note`, `reviewed_by` =
+you and `reviewed_at` = now, and is recorded, note included, in the panel's **Activity log** in
+the same transaction. The role stays what they applied for (member or ambassador, with their
+categories). A rejected applicant can sign in and **Reapply**: the same form, prefilled, in
+the same or a different role; it puts them back in the queue as pending.
 
 The change applies on the applicant's next request. On the account page, **Check again**
 picks it up. Their own referral code starts working at the same moment.

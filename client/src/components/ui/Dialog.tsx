@@ -88,12 +88,16 @@ export function Dialog({
     <dialog
       ref={ref}
       aria-labelledby={labelledBy}
+      // React passes these events up the component tree, so a dialog opened inside this one
+      // (a confirmation in a drawer) would close both. Only this dialog's own events count.
       onCancel={(event) => {
+        if (event.target !== event.currentTarget) return;
         // Escape: the parent decides (it owns `open`).
         event.preventDefault();
         if (latest.current.dismissible) latest.current.onClose();
       }}
-      onClose={() => {
+      onClose={(event) => {
+        if (event.target !== event.currentTarget) return;
         // Also reached if the browser force-closes it; keep the parent's state in step.
         if (latest.current.open) latest.current.onClose();
         returnFocusTo.current?.focus();

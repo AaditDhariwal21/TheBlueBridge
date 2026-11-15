@@ -130,6 +130,16 @@ export const ROUTES = {
       noindex: true,
     },
   },
+  reapply: {
+    path: '/account/reapply',
+    ...lazyPage(() => import('../pages/ReapplyPage'), 'ReapplyPage'),
+    requiresAuth: true,
+    meta: {
+      title: 'Apply again — The Blue Bridge',
+      description: 'Send your application to The Blue Bridge again.',
+      noindex: true,
+    },
+  },
 } satisfies Record<string, RouteDef>;
 
 export const NOT_FOUND = {

@@ -1,26 +1,27 @@
+import { BLOG_LIMITS } from '../../../../../shared/limits';
 import type { RichDoc } from './richText';
 import type { NewBlogInput, NewQueryBlogInput } from './types';
 
 /**
- * Input rules for posting. Mirrors server/src/features/blogs/blogs.schemas.ts;
- * client-side checks are for feedback only and the API validates again.
+ * Input rules for posting, from shared/limits.ts (the server validates with the same
+ * numbers). Client-side checks are for feedback only; the API validates again.
  */
 export const BLOG_RULES = {
-  titleMin: 10,
-  titleMax: 140,
-  bodyMin: 80,
-  bodyMax: 12_000,
-  maxCategories: 5,
+  titleMin: BLOG_LIMITS.titleMin,
+  titleMax: BLOG_LIMITS.titleMax,
+  bodyMin: BLOG_LIMITS.bodyMin,
+  bodyMax: BLOG_LIMITS.bodyMax,
+  maxCategories: BLOG_LIMITS.maxCategories,
 } as const;
 
 export const QUERY_BLOG_RULES = {
-  titleMin: 3,
-  titleMax: 80,
-  descriptionMin: 10,
-  descriptionMax: 500,
+  titleMin: BLOG_LIMITS.queryTitleMin,
+  titleMax: BLOG_LIMITS.queryTitleMax,
+  descriptionMin: BLOG_LIMITS.queryDescriptionMin,
+  descriptionMax: BLOG_LIMITS.queryDescriptionMax,
 } as const;
 
-export const COMMENT_MAX = 2_000;
+export const COMMENT_MAX = BLOG_LIMITS.commentMax;
 
 /** Feed search. Mirrors FEED_SEARCH_LIMITS in server/src/features/blogs/blogs.schemas.ts. */
 export const FEED_SEARCH_RULES = {

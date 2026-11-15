@@ -5,8 +5,12 @@ import { Kysely, PostgresDialect, type CompiledQuery } from 'kysely';
 import { Pool } from 'pg';
 
 import type { Database, Db } from '../../src/db/schema.ts';
-import { selectAdminActions } from '../../src/features/adminLog/adminLog.repository.ts';
+import {
+  selectAdminActions,
+  selectTargetActions,
+} from '../../src/features/adminLog/adminLog.repository.ts';
 import { selectFeed, selectFeedSearch } from '../../src/features/blogs/blogs.repository.ts';
+import { selectThread } from '../../src/features/comments/comments.repository.ts';
 import { selectMembers } from '../../src/features/members/members.repository.ts';
 import { createTestDatabase, skipWithoutDatabase, type TestDatabase } from '../support/database.ts';
 import { categoryId, insertUser } from '../support/fixtures.ts';
@@ -67,6 +71,22 @@ describe('query plans', { skip: skipWithoutDatabase }, () => {
   });
 
   it('admin Community Directory: users_admin_directory_idx in order, no sort', async () => {
+    // A wide, empty users table makes a bitmap scan and a sort look cheap; give the planner a
+    // realistic community: 2,000 people, 1% of them waiting for approval.
+    await t.pool.query(`
+      with new_users as (
+        select g, gen_random_uuid() as id from generate_series(1, 2000) as g
+      ),
+      auth_users as (
+        insert into auth.users (id, email)
+        select id, 'plan-' || g || '@example.com' from new_users
+      )
+      insert into public.users (user_id, name, phone_number, occupation, role, status)
+      select id, 'Member ' || g, '+919876543210', 'Engineer', 'member',
+             (case when g % 100 = 0 then 'pending' else 'approved' end)::public.user_status
+      from new_users
+    `);
+    await t.pool.query('analyze public.users');
     const page = { limit: 20, cursor: { k: 0, n: 'aarti', id: crypto.randomUUID() } };
     const plan = await planOf(() => selectMembers(db, {}, page));
     assert.match(plan, /Index Scan using users_admin_directory_idx/);
@@ -120,5 +140,17 @@ describe('query plans', { skip: skipWithoutDatabase }, () => {
       assert.match(plan, new RegExp(`Index Scan using ${index}`), JSON.stringify(filter));
       assert.doesNotMatch(plan, /Sort/);
     }
+  });
+
+  it('a blog thread: live comments by comments_thread_idx, placeholders by primary key', async () => {
+    const plan = await planOf(() => selectThread(db, crypto.randomUUID()));
+    assert.match(plan, /Index Scan using comments_thread_idx/);
+    // Placeholders: one lookup by comment id (the primary key or the (comment_id, blog_id) key).
+    assert.match(plan, /Index Scan using comments_(pkey|comment_id_blog_id_key)/);
+  });
+
+  it('review history of one applicant: admin_action_logs_target_idx', async () => {
+    const plan = await planOf(() => selectTargetActions(db, crypto.randomUUID(), 50));
+    assert.match(plan, /admin_action_logs_target_idx/);
   });
 });

@@ -27,24 +27,10 @@ export async function insertAdminAction(
     .execute();
 }
 
-/**
- * Newest first, optionally for one action and/or one admin (admin_action_logs_recent_idx,
- * _admin_idx, _action_idx). Fetches limit + 1.
- */
-export function selectAdminActions(
-  db: Db,
-  filter: { action?: AdminAction | undefined; adminId?: string | undefined },
-  page: { limit: number; cursor?: Cursor | undefined },
-) {
-  let query = db
+function entries(db: Db) {
+  return db
     .selectFrom('admin_action_logs as l')
-    .innerJoin('users as admin', 'admin.user_id', 'l.admin_id');
-  if (filter.action !== undefined) query = query.where('l.action', '=', filter.action);
-  if (filter.adminId !== undefined) query = query.where('l.admin_id', '=', filter.adminId);
-  if (page.cursor !== undefined) {
-    query = query.where(keysetBefore('l.created_at', 'l.log_id', page.cursor));
-  }
-  return query
+    .innerJoin('users as admin', 'admin.user_id', 'l.admin_id')
     .select([
       'l.log_id',
       'l.action',
@@ -56,9 +42,37 @@ export function selectAdminActions(
       sql<string>`l.created_at::text`.as('created_at_key'),
       'admin.user_id as admin_id',
       'admin.name as admin_name',
-    ])
+    ]);
+}
+
+/**
+ * Newest first, optionally for one action and/or one admin (admin_action_logs_recent_idx,
+ * _admin_idx, _action_idx). Fetches limit + 1.
+ */
+export function selectAdminActions(
+  db: Db,
+  filter: { action?: AdminAction | undefined; adminId?: string | undefined },
+  page: { limit: number; cursor?: Cursor | undefined },
+) {
+  let query = entries(db);
+  if (filter.action !== undefined) query = query.where('l.action', '=', filter.action);
+  if (filter.adminId !== undefined) query = query.where('l.admin_id', '=', filter.adminId);
+  if (page.cursor !== undefined) {
+    query = query.where(keysetBefore('l.created_at', 'l.log_id', page.cursor));
+  }
+  return query
     .orderBy('l.created_at', 'desc')
     .orderBy('l.log_id', 'desc')
     .limit(page.limit + 1)
+    .execute();
+}
+
+/** Entries about one target, newest first (admin_action_logs_target_idx). */
+export function selectTargetActions(db: Db, targetId: string, limit: number) {
+  return entries(db)
+    .where('l.target_id', '=', targetId)
+    .orderBy('l.created_at', 'desc')
+    .orderBy('l.log_id', 'desc')
+    .limit(limit)
     .execute();
 }

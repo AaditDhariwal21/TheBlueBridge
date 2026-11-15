@@ -3,9 +3,8 @@ import type { Logger } from 'pino';
 import type { Db } from '../../db/schema.ts';
 import { invalidReferralCodeError, validationError } from '../../lib/errors.ts';
 import type { IdentityProvider } from '../../lib/identity.ts';
-import { allCategoriesExist } from '../categories/categories.service.ts';
 import { findUsableReferralCodeId, issueReferralCode } from '../referrals/referrals.service.ts';
-import { createProfile } from '../users/users.service.ts';
+import { checkApplicationAnswers, createProfile } from '../users/users.service.ts';
 import type { SignupInput } from './auth.schemas.ts';
 
 export interface SignupDeps {
@@ -19,7 +18,7 @@ export async function isReferralCodeUsable(db: Db, code: string): Promise<boolea
 }
 
 /**
- * 1. Check the referral code and categories before anything is created.
+ * 1. Check the referral code, categories and option answers before anything is created.
  * 2. Create the Supabase Auth user (email pre-confirmed: admin approval is the check).
  * 3. In one transaction: re-check the code under a lock, insert the pending
  *    profile and categories, and issue the user's own referral code.
@@ -33,9 +32,7 @@ export async function signup(deps: SignupDeps, input: SignupInput): Promise<void
   const { db, identity } = deps;
 
   if (!(await isReferralCodeUsable(db, input.referralCode))) throw invalidReferralCodeError();
-  if (!(await allCategoriesExist(db, input.categoryIds))) {
-    throw validationError({ categoryIds: 'Choose categories from the list.' });
-  }
+  const answers = await checkApplicationAnswers(db, input);
 
   const created = await identity.createUser({ email: input.email, password: input.password });
   if (!created.ok) {
@@ -52,15 +49,11 @@ export async function signup(deps: SignupDeps, input: SignupInput): Promise<void
       });
       if (referralCodeId === undefined) throw invalidReferralCodeError();
 
-      await createProfile(trx, {
-        userId: created.userId,
-        name: input.name,
-        phoneNumber: input.phoneNumber,
-        occupation: input.occupation,
-        role: input.appliedRole,
-        referralCodeId,
-        categoryIds: input.categoryIds,
-      });
+      await createProfile(
+        trx,
+        { userId: created.userId, referralCodeId, application: input },
+        answers,
+      );
       await issueReferralCode(trx, created.userId);
     });
   } catch (error) {

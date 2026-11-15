@@ -2,7 +2,8 @@
 
 Invite-only community site for professional women from Jodhpur. npm-workspaces monorepo:
 `client/` (React 19, Vite 8, React Router 8, Tailwind 4) and `server/` (Express 5, run by
-Node's type stripping, no build). Supabase provides Auth and Postgres. Read `README.md`
+Node's type stripping, no build). Supabase provides Auth and Postgres. Shared limits and
+validation helpers used by both live in `shared/` (each limit defined once). Read `README.md`
 for commands and `docs/SUPABASE_SETUP.md` for the Supabase project.
 
 Priorities, all equal: correct functionality and flow, security, scalability. Choose the
@@ -33,6 +34,9 @@ simplest correct option; no speculative features, no dead code.
 - Accessibility: labels via `Field`, errors linked with `aria-describedby`, focus moved to
   the first invalid field on submit, `role="alert"` for errors, `aria-busy` while loading.
   Every data view has loading, empty and error states.
+- Data from the API is read through `lib/queryCache.ts` (`useQuery`, `usePagedList`, keyed):
+  loaded on every mount and on tab focus, shown from cache meanwhile. Actions update the
+  cached copies. Don't add another cache or fetch-on-first-mount-only state.
 - API calls go through `src/lib/api.ts` (typed `ApiError`; `retryTransient` for calls that
   must survive a restarting API). Dev: same-origin `/api` via the Vite proxy. Prod: `VITE_API_URL`
   (Render) with CORS; see `docs/DEPLOYMENT.md`.
@@ -95,8 +99,9 @@ test/                 integration tests + support/ (test DB, fixtures, fakes, to
 - Reads of community content are public; writes go through `requireAuth`, `requireApproved`,
   then a policy check in the service (`getScopedActor` loads an ambassador's categories).
   Posting is limited per member (`writeRateLimit`).
-- Deletes are soft (`deleted_at`, `deleted_by`). Removed comments are returned with
-  `removed: true` and `body: null` so replies keep their place.
+- Deletes are soft (`deleted_at`, `deleted_by`); `purge_soft_deleted()` (pg_cron, daily) removes
+  the data 30 days later. A removed comment is returned only while live replies hang from it,
+  as `removed: true` with `body: null` and `author: null`; never send its text or author.
 - User text is normalized with `lib/text.ts` via `singleLineText` / `multilineText`
   (`lib/validation.ts`) and stored as plain text; the client renders it as text, never HTML.
 - Formatted blog bodies are an allow-listed document (`lib/richText.ts`): add a node or mark

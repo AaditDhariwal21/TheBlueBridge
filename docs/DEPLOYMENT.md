@@ -45,7 +45,7 @@ Follow [`SUPABASE_SETUP.md`](SUPABASE_SETUP.md) steps 1–6 again, on a **new** 
 - Plan: **Pro** is recommended for production (daily backups, no pausing, leaked-password
   protection).
 - Security options: Data API **off**, automatic RLS **on** (same as dev).
-- Auth: **Allow new users to sign up OFF**, minimum password length **10**, anonymous
+- Auth: **Allow new users to sign up OFF**, minimum password length **6**, anonymous
   sign-ins off. Check `https://<prod-ref>.supabase.co/auth/v1/.well-known/jwks.json` shows
   an ES256 key.
 - Database settings → SSL Configuration: **Enforce SSL** on, and **Download certificate**.

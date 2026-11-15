@@ -6,7 +6,7 @@ import { sql } from 'kysely';
 import type { Db } from '../../src/db/schema.ts';
 import { logAdminAction } from '../../src/features/adminLog/adminLog.service.ts';
 import { deleteQueryBlog } from '../../src/features/blogs/blogs.service.ts';
-import { approveMember } from '../../src/features/members/members.service.ts';
+import { approveMember, rejectMember } from '../../src/features/members/members.service.ts';
 import type { Viewer } from '../../src/middleware/authenticate.ts';
 import {
   createTestDatabase,
@@ -95,7 +95,7 @@ describe('admin action log', { skip: skipWithoutDatabase }, () => {
         );
       const valid = { action: 'member_approved', targetType: 'user', label: 'Priya', reason: null };
       const cases: [Record<string, unknown>, string][] = [
-        [{ ...valid, action: 'member_rejected' }, 'admin_action_logs_action_check'],
+        [{ ...valid, action: 'member_suspended' }, 'admin_action_logs_action_check'],
         [{ ...valid, targetType: 'blog' }, 'admin_action_logs_target_type_check'],
         [{ ...valid, label: '' }, 'admin_action_logs_target_label_check'],
         [{ ...valid, reason: 'x'.repeat(501) }, 'admin_action_logs_reason_check'],
@@ -131,18 +131,30 @@ describe('admin action log', { skip: skipWithoutDatabase }, () => {
     // log insert itself fails after the action's own write.
     const TOO_LONG = 'x'.repeat(501);
 
-    it('rolls an approval back when its entry cannot be written', async () => {
-      const applicant = await insertUser(t.db, { status: 'pending' });
-      const error = await pgError(approveMember(t.db, viewer, applicant.id, TOO_LONG));
-      assert.equal(error.constraint, 'admin_action_logs_reason_check');
+    it('rolls an approval or rejection back when its entry cannot be written', async () => {
+      // The note is valid for users.review_note; a test-only check makes the log refuse
+      // this applicant's entry, after the decision itself was written.
+      await sql`alter table public.admin_action_logs
+        add constraint test_refuse_label check (target_label <> 'Refused')`.execute(t.db);
+      try {
+        for (const decide of [approveMember, rejectMember]) {
+          const applicant = await insertUser(t.db, { status: 'pending', name: 'Refused' });
+          const error = await pgError(decide(t.db, viewer, applicant.id, 'A note'));
+          assert.equal(error.constraint, 'test_refuse_label');
 
-      const row = await t.db
-        .selectFrom('users')
-        .select(['status', 'reviewed_by'])
-        .where('user_id', '=', applicant.id)
-        .executeTakeFirstOrThrow();
-      assert.deepEqual(row, { status: 'pending', reviewed_by: null });
-      assert.equal(await entryCount(), 0);
+          const row = await t.db
+            .selectFrom('users')
+            .select(['status', 'reviewed_by', 'review_note'])
+            .where('user_id', '=', applicant.id)
+            .executeTakeFirstOrThrow();
+          assert.deepEqual(row, { status: 'pending', reviewed_by: null, review_note: null });
+        }
+        assert.equal(await entryCount(), 0);
+      } finally {
+        await sql`alter table public.admin_action_logs drop constraint test_refuse_label`.execute(
+          t.db,
+        );
+      }
     });
 
     it('rolls a Query Blog removal back when its entry cannot be written', async () => {

@@ -132,6 +132,7 @@ export function findMemberForAdmin(db: Db, userId: string) {
       ...profileColumns(eb),
       'u.status',
       'u.reviewed_at',
+      'u.review_note',
       'referrer.user_id as referrer_id',
       'referrer.name as referrer_name',
       'referrer.role as referrer_role',
@@ -153,10 +154,20 @@ export function lockApplicant(trx: Db, userId: string) {
     .executeTakeFirst();
 }
 
-export async function markApproved(trx: Db, userId: string, reviewerId: string): Promise<void> {
+/** Records the decision on an application, with the note the applicant will see (or none). */
+export async function markReviewed(
+  trx: Db,
+  userId: string,
+  review: { status: 'approved' | 'rejected'; reviewerId: string; note: string | null },
+): Promise<void> {
   await trx
     .updateTable('users')
-    .set({ status: 'approved', reviewed_by: reviewerId, reviewed_at: sql<Date>`now()` })
+    .set({
+      status: review.status,
+      review_note: review.note,
+      reviewed_by: review.reviewerId,
+      reviewed_at: sql<Date>`now()`,
+    })
     .where('user_id', '=', userId)
     .execute();
 }

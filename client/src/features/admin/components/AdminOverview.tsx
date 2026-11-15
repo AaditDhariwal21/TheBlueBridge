@@ -4,7 +4,7 @@ import { Button } from '../../../components/ui/Button';
 import { buttonClasses } from '../../../components/ui/buttonClasses';
 import { Card } from '../../../components/ui/Card';
 import { Skeleton } from '../../../components/ui/Skeleton';
-import { useAsync } from '../../../lib/useAsync';
+import { useQuery } from '../../../lib/useQuery';
 import { plural } from '../../blogs/lib/text';
 import { fetchOverview } from '../api';
 import { ADMIN_PATH, pendingMembersPath } from '../paths';
@@ -29,7 +29,7 @@ const QUICK_LINKS = [
 
 /** The panel's landing section: what is waiting, and the way to everything else. */
 export function AdminOverview() {
-  const overview = useAsync(fetchOverview);
+  const overview = useQuery('admin/overview', fetchOverview);
   const pending = overview.data;
 
   return (

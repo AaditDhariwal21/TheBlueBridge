@@ -4,12 +4,12 @@ import { LoadMoreButton } from '../../../components/ui/LoadMoreButton';
 import { Skeleton } from '../../../components/ui/Skeleton';
 import { usePagedList } from '../../../lib/usePagedList';
 import { plural } from '../../blogs/lib/text';
-import { fetchMyReferrals } from '../api';
+import { fetchMyReferrals, REFERRALS_PAGE_SIZE } from '../api';
 import { ReferralRow } from './ReferralRow';
 
 /** "People who joined using your code", on the account page, for every approved member. */
 export function MyReferrals() {
-  const list = usePagedList(fetchMyReferrals);
+  const list = usePagedList('me/referrals', fetchMyReferrals, { pageSize: REFERRALS_PAGE_SIZE });
   const { items, status, total } = list;
   const firstLoad = status === 'loading' && items.length === 0;
 

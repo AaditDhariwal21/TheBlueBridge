@@ -181,7 +181,7 @@ describe('admin panel API', { skip: skipWithoutDatabase }, () => {
     assert.deepEqual(await names('q=%25'), []);
     assert.deepEqual(await names('q=_'), []);
 
-    for (const bad of ['status=rejected', 'role=owner', `q=${'x'.repeat(101)}`, 'limit=51']) {
+    for (const bad of ['status=suspended', 'role=owner', `q=${'x'.repeat(101)}`, 'limit=51']) {
       assert.equal((await app.get(`/admin/members?${bad}`, token)).status, 400, bad);
     }
   });
@@ -227,7 +227,7 @@ describe('admin panel API', { skip: skipWithoutDatabase }, () => {
     const token = await as(admin);
     const approved = await app.post<AdminMemberDto>(
       `/admin/members/${applicant.id}/approve`,
-      { reason: '  Known to   the Jodhpur chapter ' },
+      { note: '  Known to   the Jodhpur chapter ' },
       token,
     );
     assert.equal(approved.status, 200);
@@ -238,7 +238,7 @@ describe('admin panel API', { skip: skipWithoutDatabase }, () => {
     assert.equal(again.status, 409);
     assert.equal(again.body.error.code, 'CONFLICT');
 
-    // No body at all is fine: the reason is optional.
+    // No body at all is fine: the note is optional.
     const res = await app.post(`/admin/members/${applyingAmbassador.id}/approve`, undefined, token);
     assert.equal(res.status, 200);
 
@@ -273,12 +273,12 @@ describe('admin panel API', { skip: skipWithoutDatabase }, () => {
     for (const id of [crypto.randomUUID(), 'not-a-uuid']) {
       assert.equal((await app.post(`/admin/members/${id}/approve`, {}, token)).status, 404);
     }
-    const tooLong = { reason: 'x'.repeat(501) };
+    const tooLong = { note: 'x'.repeat(501) };
     assert.equal(
       (await app.post(`/admin/members/${applicant.id}/approve`, tooLong, token)).status,
       400,
     );
-    const unknownField = { reason: 'ok', role: 'admin' };
+    const unknownField = { note: 'ok', role: 'admin' };
     assert.equal(
       (await app.post(`/admin/members/${applicant.id}/approve`, unknownField, token)).status,
       400,
@@ -408,7 +408,7 @@ describe('admin panel API', { skip: skipWithoutDatabase }, () => {
     ]);
     assert.deepEqual(await actions(`adminId=${secondAdmin.id}&action=member_approved`), []);
 
-    for (const bad of ['action=member_rejected', 'adminId=nope', 'cursor=bm9wZQ']) {
+    for (const bad of ['action=member_suspended', 'adminId=nope', 'cursor=bm9wZQ']) {
       assert.equal((await app.get(`/admin/action-logs?${bad}`, token)).status, 400, bad);
     }
   });

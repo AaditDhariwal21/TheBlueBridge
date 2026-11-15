@@ -56,13 +56,14 @@ export type CommentSubject =
 /**
  * One entry in a thread. Threads are flat lists; the tree is rebuilt from
  * `parentId` on the client. On a Query Blog, a top-level comment is a query.
- * A removed comment keeps its place (so its replies stay attached) but has no body.
+ * A removed comment appears only while live replies hang from it: a placeholder with no
+ * body and no author.
  */
 export interface Comment {
   id: string;
   subject: CommentSubject;
   parentId: string | null;
-  author: User;
+  author: User | null;
   body: string | null;
   removed: boolean;
   createdAt: string;

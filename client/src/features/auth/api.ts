@@ -1,8 +1,8 @@
 import { apiRequest } from '../../lib/api';
 import type { Me, SignupInput } from './types';
 
-export async function fetchMe(token: string): Promise<Me> {
-  const data = (await apiRequest('/me', { token })) as { user: Me };
+export async function fetchMe(token: string, signal?: AbortSignal): Promise<Me> {
+  const data = (await apiRequest('/me', { token, signal })) as { user: Me };
   return data.user;
 }
 

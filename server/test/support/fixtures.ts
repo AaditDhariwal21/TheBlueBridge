@@ -129,3 +129,37 @@ export async function insertComment(
     .executeTakeFirstOrThrow();
   return comment_id;
 }
+
+/**
+ * A complete, valid membership application as the API takes it (sign-up adds the account
+ * fields; reapplying sends it as is). Override any answer.
+ */
+export function applicationInput<T extends object>(overrides: T) {
+  return { ...APPLICATION, ...overrides };
+}
+
+const APPLICATION = {
+  name: '  Aditi   Vyas ',
+  maidenName: null,
+  phoneNumber: '+91 98765-43210',
+  city: 'Pune',
+  state: 'Maharashtra',
+  country: 'in',
+  jodhpurConnections: ['born_here', 'family_roots'],
+  connectionOther: null,
+  schoolPassYear: 2008,
+  schoolName: 'St. Patrick’s Vidya Bhawan',
+  collegePassYear: 'na',
+  collegeName: null,
+  highestDegree: 'n/a',
+  profession: 'Technology',
+  occupation: 'Product Manager',
+  linkedinUrl: 'linkedin.com/in/aditi-vyas',
+  journeyStage: 'mid_career',
+  journeyStageOther: null,
+  joinReasons: ['network', 'mentorship'],
+  joinReasonOther: null,
+  appliedRole: 'member',
+  categoryIds: [],
+  weeklyHours: null,
+};

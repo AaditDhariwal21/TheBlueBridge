@@ -1,8 +1,6 @@
-import { useCallback } from 'react';
-
 import { Button } from '../../../components/ui/Button';
 import { Skeleton } from '../../../components/ui/Skeleton';
-import { useAsync } from '../../../lib/useAsync';
+import { useQuery } from '../../../lib/useQuery';
 import { AuthorActivity } from '../../blogs/components/mine/MyActivity';
 import { fetchProfile } from '../api';
 import type { MemberSummary } from '../types';
@@ -25,19 +23,15 @@ export function MemberProfilePanel({ viewerId, member, onClose }: MemberProfileP
       subtitle={<p className="text-sm wrap-break-word text-text-muted">{member?.occupation}</p>}
       onClose={onClose}
     >
-      {member && <ProfileSections key={member.id} viewerId={viewerId} memberId={member.id} />}
+      {member && <ProfileSections key={member.id} memberId={member.id} />}
     </MemberPanel>
   );
 }
 
 const SKELETON_WIDTHS = ['w-2/3', 'w-3/4', 'w-1/2'] as const;
 
-function ProfileSections({ viewerId, memberId }: { viewerId: string; memberId: string }) {
-  const load = useCallback(
-    (signal: AbortSignal) => fetchProfile(viewerId, memberId, signal),
-    [viewerId, memberId],
-  );
-  const profile = useAsync(load);
+function ProfileSections({ memberId }: { memberId: string }) {
+  const profile = useQuery(`members/${memberId}`, (signal) => fetchProfile(memberId, signal));
 
   return (
     <>

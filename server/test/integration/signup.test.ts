@@ -6,7 +6,13 @@ import { sql } from 'kysely';
 import { isWellFormedReferralCode } from '../../src/lib/referralCode.ts';
 import { createTestDatabase, skipWithoutDatabase, type TestDatabase } from '../support/database.ts';
 import { createFakeIdentity } from '../support/fakeIdentity.ts';
-import { categoryId, insertUser, uniqueEmail, type TestUser } from '../support/fixtures.ts';
+import {
+  applicationInput,
+  categoryId,
+  insertUser,
+  uniqueEmail,
+  type TestUser,
+} from '../support/fixtures.ts';
 import { startTestApp, type TestApp } from '../support/testApp.ts';
 
 describe(
@@ -36,16 +42,22 @@ describe(
     });
 
     function memberInput(overrides: Record<string, unknown> = {}) {
-      return {
+      return applicationInput({
         referralCode: referrer.code,
         email: uniqueEmail(),
         password: 'correct horse battery',
-        name: '  Aditi   Vyas ',
-        phoneNumber: '+91 98765-43210',
-        occupation: 'Product Manager',
-        appliedRole: 'member',
         ...overrides,
-      };
+      });
+    }
+
+    /** An ambassador's extra answers: categories and weekly hours. */
+    async function ambassadorInput(overrides: Record<string, unknown> = {}) {
+      return memberInput({
+        appliedRole: 'ambassador',
+        categoryIds: [await categoryId(t.db, 'Finance')],
+        weeklyHours: '3_5',
+        ...overrides,
+      });
     }
 
     async function profileByEmail(email: string) {
@@ -94,9 +106,150 @@ describe(
       assert.ok(profile.code !== null && isWellFormedReferralCode(profile.code));
     });
 
-    it('creates an ambassador with their categories', async () => {
-      const chosen = [await categoryId(t.db, 'Tech'), await categoryId(t.db, 'Legal')];
-      const input = memberInput({ appliedRole: 'ambassador', categoryIds: chosen });
+    it('stores every application answer, normalized', async () => {
+      const input = memberInput({
+        maidenName: '  Mehta ',
+        jodhpurConnections: ['grew_up_here', 'other'],
+        connectionOther: '  My grandparents  live there ',
+        journeyStage: 'student',
+        journeyStageOther: 'ignored unless Other is chosen',
+        joinReasons: ['give_back'],
+        linkedinUrl: 'http://www.LinkedIn.com/in/aditi#top',
+        password: 'six666',
+      });
+      assert.equal((await app.post('/auth/signup', input)).status, 202);
+      const profile = await profileByEmail(input.email);
+      assert.ok(profile);
+
+      const row = await t.db
+        .selectFrom('users')
+        .leftJoin('journey_stages as js', 'js.journey_stage_id', 'users.journey_stage_id')
+        .select([
+          'maiden_name',
+          'city',
+          'state',
+          'country_code',
+          'school_pass_year',
+          'school_name',
+          'college_pass_year',
+          'college_name',
+          'highest_degree',
+          'profession',
+          'occupation',
+          'linkedin_url',
+          'connection_other',
+          'journey_stage_other',
+          'join_reason_other',
+          'weekly_hours_id',
+          'js.code as journey_stage',
+        ])
+        .where('user_id', '=', profile.user_id)
+        .executeTakeFirstOrThrow();
+      assert.deepEqual(row, {
+        maiden_name: 'Mehta',
+        city: 'Pune',
+        state: 'Maharashtra',
+        country_code: 'IN',
+        school_pass_year: 2008,
+        school_name: 'St. Patrick’s Vidya Bhawan',
+        college_pass_year: 'NA',
+        college_name: null,
+        highest_degree: 'NA',
+        profession: 'Technology',
+        occupation: 'Product Manager',
+        linkedin_url: 'https://www.linkedin.com/in/aditi',
+        connection_other: 'My grandparents live there',
+        journey_stage_other: null,
+        join_reason_other: null,
+        weekly_hours_id: null,
+        journey_stage: 'student',
+      });
+
+      const connections = await t.db
+        .selectFrom('user_jodhpur_connections as u')
+        .innerJoin('jodhpur_connections as o', 'o.connection_id', 'u.connection_id')
+        .select('o.code')
+        .where('u.user_id', '=', profile.user_id)
+        .orderBy('o.code')
+        .execute();
+      assert.deepEqual(
+        connections.map((r) => r.code),
+        ['grew_up_here', 'other'],
+      );
+      const reasons = await t.db
+        .selectFrom('user_join_reasons as u')
+        .innerJoin('join_reasons as o', 'o.join_reason_id', 'u.join_reason_id')
+        .select('o.code')
+        .where('u.user_id', '=', profile.user_id)
+        .execute();
+      assert.deepEqual(
+        reasons.map((r) => r.code),
+        ['give_back'],
+      );
+    });
+
+    it('requires the answers, "Other" text when Other is chosen, and valid formats', async () => {
+      const cases: [Record<string, unknown>, string][] = [
+        [{ city: '  ' }, 'city'],
+        [{ country: 'XX' }, 'country'],
+        [{ phoneNumber: '+91 12345' }, 'phoneNumber'],
+        [{ jodhpurConnections: [] }, 'jodhpurConnections'],
+        [{ jodhpurConnections: ['other'] }, 'connectionOther'],
+        [{ journeyStage: 'other' }, 'journeyStageOther'],
+        [{ joinReasons: ['other'], joinReasonOther: '   ' }, 'joinReasonOther'],
+        [{ schoolPassYear: 1820 }, 'schoolPassYear'],
+        [{ schoolPassYear: undefined }, 'schoolPassYear'],
+        [{ collegePassYear: null }, 'collegePassYear'],
+        [{ collegePassYear: 'soon' }, 'collegePassYear'],
+        [{ highestDegree: '' }, 'highestDegree'],
+        [{ profession: '' }, 'profession'],
+        [{ linkedinUrl: 'https://evil.example.com/in/aditi' }, 'linkedinUrl'],
+        [{ linkedinUrl: 'https://linkedin.com.evil.io/in/x' }, 'linkedinUrl'],
+        [{ journeyStage: 'astronaut' }, 'journeyStage'],
+        [{ joinReasons: ['network', 'network'] }, 'joinReasons'],
+        [{ weeklyHours: '3_5' }, 'weeklyHours'],
+      ];
+      for (const [overrides, field] of cases) {
+        // A fresh app per case: sign-up shares the tight referral-attempt rate limit.
+        const local = await startTestApp({ db: t.db, identity: fake.identity });
+        try {
+          const res = await local.post('/auth/signup', memberInput(overrides));
+          assert.equal(res.status, 400, JSON.stringify(overrides));
+          assert.ok(res.body.error.fields?.[field], `${field}: ${JSON.stringify(res.body)}`);
+        } finally {
+          await local.close();
+        }
+      }
+      assert.deepEqual(fake.calls.created, []);
+    });
+
+    it('refuses option codes that are retired, field by field', async () => {
+      await t.db
+        .updateTable('journey_stages')
+        .set({ active: false })
+        .where('code', '=', 'retired')
+        .execute();
+      try {
+        const res = await app.post('/auth/signup', memberInput({ journeyStage: 'retired' }));
+        assert.equal(res.status, 400);
+        assert.deepEqual(Object.keys(res.body.error.fields ?? {}), ['journeyStage']);
+        assert.deepEqual(fake.calls.created, []);
+      } finally {
+        await t.db
+          .updateTable('journey_stages')
+          .set({ active: true })
+          .where('code', '=', 'retired')
+          .execute();
+      }
+    });
+
+    it('creates an ambassador with up to three categories and her weekly hours', async () => {
+      const chosen = [
+        await categoryId(t.db, 'Tech'),
+        await categoryId(t.db, 'Legal'),
+        await categoryId(t.db, 'Health'),
+      ];
+      const input = await ambassadorInput({ categoryIds: chosen, weeklyHours: '10_plus' });
       const res = await app.post('/auth/signup', input);
 
       assert.equal(res.status, 202);
@@ -109,6 +262,13 @@ describe(
         .where('user_id', '=', profile.user_id)
         .execute();
       assert.deepEqual(saved.map((r) => r.cat_id).sort(), [...chosen].sort());
+      const hours = await t.db
+        .selectFrom('users')
+        .innerJoin('weekly_hours_options as w', 'w.weekly_hours_id', 'users.weekly_hours_id')
+        .select('w.code')
+        .where('user_id', '=', profile.user_id)
+        .executeTakeFirstOrThrow();
+      assert.equal(hours.code, '10_plus');
     });
 
     it('accepts the code in lower case with a separator', async () => {
@@ -130,11 +290,12 @@ describe(
       assert.equal(await countRows('users'), 1);
     });
 
-    it('rejects a code whose owner is suspended or not yet approved', async () => {
+    it('rejects a code whose owner is suspended, rejected or not yet approved', async () => {
       const suspended = await insertUser(t.db, { status: 'suspended', referredBy: referrer });
       const pending = await insertUser(t.db, { status: 'pending', referredBy: referrer });
+      const rejected = await insertUser(t.db, { status: 'rejected', referredBy: referrer });
 
-      for (const owner of [suspended, pending]) {
+      for (const owner of [suspended, pending, rejected]) {
         const res = await app.post('/auth/signup', memberInput({ referralCode: owner.code }));
         assert.equal(res.status, 400);
         assert.equal(res.body.error.code, 'INVALID_REFERRAL_CODE');
@@ -165,10 +326,7 @@ describe(
       for each row execute function public.test_fail();
     `.execute(t.db);
       try {
-        const input = memberInput({
-          appliedRole: 'ambassador',
-          categoryIds: [await categoryId(t.db, 'Finance')],
-        });
+        const input = await ambassadorInput();
         const usersBefore = await countRows('users');
         const res = await app.post('/auth/signup', input);
 
@@ -193,7 +351,7 @@ describe(
     it('reports invalid fields without creating an Auth user', async () => {
       const res = await app.post(
         '/auth/signup',
-        memberInput({ appliedRole: 'ambassador', phoneNumber: '98765', password: 'short' }),
+        memberInput({ appliedRole: 'ambassador', phoneNumber: '98765', password: 'five5' }),
       );
 
       assert.equal(res.status, 400);
@@ -202,19 +360,22 @@ describe(
         'categoryIds',
         'password',
         'phoneNumber',
+        'weeklyHours',
       ]);
       assert.deepEqual(fake.calls.created, []);
     });
 
-    it('rejects categories for members, more than two, and unknown ones', async () => {
+    it('rejects categories for members, more than three, and unknown ones', async () => {
       const tech = await categoryId(t.db, 'Tech');
       const finance = await categoryId(t.db, 'Finance');
       const legal = await categoryId(t.db, 'Legal');
+      const health = await categoryId(t.db, 'Health');
       const cases = [
         memberInput({ categoryIds: [tech] }),
-        memberInput({ appliedRole: 'ambassador', categoryIds: [tech, finance, legal] }),
-        memberInput({ appliedRole: 'ambassador', categoryIds: [tech, tech] }),
-        memberInput({ appliedRole: 'ambassador', categoryIds: [crypto.randomUUID()] }),
+        await ambassadorInput({ categoryIds: [tech, finance, legal, health] }),
+        await ambassadorInput({ categoryIds: [tech, tech] }),
+        await ambassadorInput({ categoryIds: [crypto.randomUUID()] }),
+        await ambassadorInput({ categoryIds: [] }),
       ];
       for (const input of cases) {
         const res = await app.post('/auth/signup', input);

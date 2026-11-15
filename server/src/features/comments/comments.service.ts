@@ -19,19 +19,20 @@ import {
   selectComment,
   selectThread,
   softDeleteComment,
+  type ThreadRow,
 } from './comments.repository.ts';
 import type { CreateCommentInput } from './comments.schemas.ts';
 
 /**
  * One entry in a blog's thread. On a Query Blog a top-level comment is a query
- * and its replies are answers. A removed comment keeps its place (so replies
- * stay attached) but has no body.
+ * and its replies are answers. A removed comment appears only while it has live
+ * replies, as a placeholder that keeps them attached: no body and no author.
  */
 export interface CommentDto {
   id: string;
   blogId: string;
   parentId: string | null;
-  author: AuthorDto;
+  author: AuthorDto | null;
   body: string | null;
   removed: boolean;
   createdAt: string;
@@ -112,7 +113,7 @@ async function mayPost(
   db: Db,
   viewer: Viewer,
   blog: LiveBlog,
-  target: { rootAuthorId: string } | null,
+  target: { rootAuthorId: string | null } | null,
 ): Promise<boolean> {
   if (blog.type === 'discussion') return canComment(viewer);
   if (target === null) return canPostQuery(viewer);
@@ -145,13 +146,18 @@ export async function deleteComment(
   }
 }
 
-function toCommentDto(row: Awaited<ReturnType<typeof selectThread>>[number]): CommentDto {
+function toCommentDto(row: ThreadRow): CommentDto {
+  const { author_id, author_name, author_occupation, author_avatar_url } = row;
+  const author =
+    row.removed || author_id === null || author_name === null || author_occupation === null
+      ? null
+      : toAuthor({ author_id, author_name, author_occupation, author_avatar_url });
   return {
     id: row.comment_id,
     blogId: row.blog_id,
     parentId: row.parent_comment_id,
-    author: toAuthor(row),
-    body: row.body,
+    author,
+    body: row.removed ? null : row.body,
     removed: row.removed,
     createdAt: row.created_at.toISOString(),
   };

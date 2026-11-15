@@ -247,7 +247,7 @@ describe('blogs, Query Blogs and comments API', { skip: skipWithoutDatabase }, (
 
     const top = await comment(otherMember, blog.id, null, 'Very useful, thank you.');
     assert.equal(top.status, 201);
-    assert.equal(top.body.comment.author.name, 'Member Two');
+    assert.equal(top.body.comment.author?.name, 'Member Two');
     const reply = await comment(member, blog.id, top.body.comment.id, 'Glad it helped!');
     assert.equal(reply.status, 201);
     assert.equal(reply.body.comment.parentId, top.body.comment.id);
@@ -467,13 +467,80 @@ describe('blogs, Query Blogs and comments API', { skip: skipWithoutDatabase }, (
 
     const thread = await app.get<{ comments: CommentDto[] }>(`/blogs/${blog.id}/comments`);
     assert.deepEqual(
-      thread.body.comments.map((c) => [c.removed, c.body]),
+      thread.body.comments.map((c) => [c.removed, c.body, c.author?.name ?? null]),
       [
-        [true, null],
-        [false, 'A reply'],
+        [true, null, null],
+        [false, 'A reply', 'Member Two'],
       ],
     );
     const detail = await app.get<{ blog: BlogDetailDto }>(`/blogs/${blog.id}`);
     assert.equal(detail.body.blog.commentCount, 1);
+  });
+
+  it('shows a removed comment only while live replies hang from it, never its text or author', async () => {
+    const blog = await publish(member, [cat.tech]);
+    const remove = async (id: string) => {
+      const path = `/blogs/${blog.id}/comments/${id}`;
+      assert.equal((await app.del(path, await as(techAmbassador))).status, 204);
+    };
+    const threadOf = async () =>
+      (await app.get<{ comments: CommentDto[] }>(`/blogs/${blog.id}/comments`)).body.comments;
+
+    // grandparent → parent → reply, plus a lone comment.
+    const grandparent = (await comment(member, blog.id, null, 'Grandparent')).body.comment;
+    const parent = (await comment(otherMember, blog.id, grandparent.id, 'Parent')).body.comment;
+    const reply = (await comment(member, blog.id, parent.id, 'Reply')).body.comment;
+    const lone = (await comment(otherMember, blog.id, null, 'Lone')).body.comment;
+
+    await remove(lone.id);
+    await remove(grandparent.id);
+    await remove(parent.id);
+    const thread = await threadOf();
+    // The lone comment is gone; both ancestors of the live reply stay, as blank placeholders.
+    assert.deepEqual(
+      thread.map((c) => [c.id, c.removed]),
+      [
+        [grandparent.id, true],
+        [parent.id, true],
+        [reply.id, false],
+      ],
+    );
+    for (const placeholder of thread.filter((c) => c.removed)) {
+      assert.equal(placeholder.body, null);
+      assert.equal(placeholder.author, null);
+    }
+    assert.doesNotMatch(JSON.stringify(thread), /Grandparent|"Parent"|Lone|Member Two/);
+
+    // A removed comment can't be replied to; a live reply under it can.
+    assert.equal((await comment(member, blog.id, parent.id)).status, 404);
+    // Once the last live reply goes, so do the placeholders.
+    await remove(reply.id);
+    assert.deepEqual(await threadOf(), []);
+    const detail = await app.get<{ blog: BlogDetailDto }>(`/blogs/${blog.id}`);
+    assert.equal(detail.body.blog.commentCount, 0);
+
+    // Removed comments are gone from their authors' lists too.
+    const mine = await app.get<{ comments: { id: string }[] }>('/me/comments', await as(member));
+    assert.deepEqual(mine.body.comments, []);
+  });
+
+  it('removes a blog from every list, with all its comments', async () => {
+    const blog = await publish(member, [cat.tech]);
+    await comment(otherMember, blog.id, null, 'Kept with the blog');
+    assert.equal((await app.del(`/blogs/${blog.id}`, await as(techAmbassador))).status, 204);
+
+    assert.equal((await app.get(`/blogs/${blog.id}`)).status, 404);
+    assert.equal((await app.get(`/blogs/${blog.id}/comments`)).status, 404);
+    const feed = await app.get<{ blogs: { id: string }[] }>('/blogs');
+    assert.deepEqual(feed.body.blogs, []);
+    const search = await app.get<{ blogs: { id: string }[] }>('/blogs?q=lessons');
+    assert.deepEqual(search.body.blogs, []);
+    const authored = await app.get<{ blogs: { id: string }[] }>('/me/blogs', await as(member));
+    assert.deepEqual(authored.body.blogs, []);
+    const commented = await app.get<{ comments: { id: string }[] }>(
+      '/me/comments',
+      await as(otherMember),
+    );
+    assert.deepEqual(commented.body.comments, []);
   });
 });

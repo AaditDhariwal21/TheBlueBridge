@@ -1,14 +1,15 @@
-import type { ReactNode } from 'react';
-
 import { CategoryDot } from '../../../components/ui/CategoryDot';
+import { applicationRows, type DetailRow } from '../../application/detailsRows';
+import { DetailList } from '../../members/components/ProfileDetails';
 import { ROLE_LABELS } from '../labels';
 import type { Me } from '../types';
 
-/** The facts of an account as a definition list. */
+/** The facts of an account and her application answers, as a definition list. */
 export function AccountSummary({ me, roleLabel }: { me: Me; roleLabel: string }) {
-  const rows: [string, ReactNode][] = [
+  const rows: DetailRow[] = [
     ['Name', me.name],
     ['Email', me.email ?? '—'],
+    ['Mobile', me.phoneNumber],
     ['Occupation', me.occupation],
     [roleLabel, ROLE_LABELS[me.role]],
   ];
@@ -29,15 +30,6 @@ export function AccountSummary({ me, roleLabel }: { me: Me; roleLabel: string })
       ),
     ]);
   }
-
-  return (
-    <dl className="grid gap-x-6 gap-y-3 text-sm sm:grid-cols-[auto_1fr]">
-      {rows.map(([term, detail]) => (
-        <div key={term} className="contents">
-          <dt className="text-text-muted">{term}</dt>
-          <dd className="-mt-2 wrap-break-word sm:mt-0">{detail}</dd>
-        </div>
-      ))}
-    </dl>
-  );
+  rows.push(...applicationRows(me));
+  return <DetailList rows={rows} />;
 }

@@ -10,7 +10,7 @@ export interface Actor {
   readonly id: string;
   readonly role: Role;
   readonly status: Status;
-  /** The actor's own categories (ambassadors: 1 or 2; everyone else: none). */
+  /** The actor's own categories (ambassadors: 1 to 3; everyone else: none). */
   readonly categoryIds: readonly string[];
 }
 
@@ -33,7 +33,7 @@ export function canPostQuery(actor: Actor | null): boolean {
 /** Its author, an ambassador for the query blog's category, or an admin. */
 export function canReplyUnderQuery(
   actor: Actor | null,
-  query: { readonly authorId: string; readonly categoryId: string },
+  query: { readonly authorId: string | null; readonly categoryId: string },
 ): boolean {
   if (!isApproved(actor)) return false;
   return actor.id === query.authorId || hasCategoryPower(actor, [query.categoryId]);
@@ -62,12 +62,17 @@ export function canDeleteQueryBlog(actor: Actor | null): boolean {
   return canUseAdminPanel(actor);
 }
 
-/** Approve an application: an admin, for a pending member or ambassador. */
-export function canApproveMember(
+/** Approve or reject an application: an admin, for a pending member or ambassador. */
+export function canReviewApplication(
   actor: Pick<Actor, 'role' | 'status'> | null,
   applicant: { readonly role: Role; readonly status: Status },
 ): boolean {
   return canUseAdminPanel(actor) && applicant.status === 'pending' && applicant.role !== 'admin';
+}
+
+/** Send a new application after a rejection. Admins are never applicants. */
+export function canReapply(actor: Pick<Actor, 'role' | 'status'> | null): boolean {
+  return actor?.status === 'rejected' && actor.role !== 'admin';
 }
 
 /** Admins everywhere; ambassadors where any of the categories is one of their own. */

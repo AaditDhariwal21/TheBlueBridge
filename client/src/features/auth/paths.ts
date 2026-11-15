@@ -4,6 +4,7 @@ export const AUTH_PATHS = {
   signIn: '/sign-in',
   signUp: '/sign-up',
   account: '/account',
+  reapply: '/account/reapply',
 } as const;
 
 /** A same-site path from ?next=, or null. Blocks open redirects ("//evil.com", "https:..."). */

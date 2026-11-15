@@ -16,7 +16,7 @@ import type { Role } from '../../auth/types';
 import { initialsOf } from '../../blogs/lib/text';
 import { RoleSections } from '../../members/components/RoleSections';
 import { StatusLabel } from '../../members/components/StatusLabel';
-import { fetchMembers } from '../api';
+import { ADMIN_PAGE_SIZE, fetchMembers } from '../api';
 import type { AdminMember, AdminMemberSummary, MemberStatusFilter } from '../types';
 import { AdminMemberDrawer } from './AdminMemberDrawer';
 
@@ -24,7 +24,7 @@ const SEARCH_DEBOUNCE_MS = 300;
 const ROLES = Object.keys(ROLE_LABELS) as Role[];
 
 const asStatus = (value: string | null): MemberStatusFilter | null =>
-  value === 'pending' || value === 'approved' ? value : null;
+  value === 'pending' || value === 'approved' || value === 'rejected' ? value : null;
 const asRole = (value: string): Role | null => ROLES.find((role) => role === value) ?? null;
 
 /**
@@ -41,11 +41,15 @@ export function AdminMembers() {
   const q = useDebouncedValue(search.replace(/\s+/g, ' ').trim(), SEARCH_DEBOUNCE_MS);
 
   const fetchPage = useCallback(
-    (cursor: string | null, signal: AbortSignal) =>
-      fetchMembers({ q, status, role }, cursor, signal),
+    (cursor: string | null, limit: number, signal: AbortSignal) =>
+      fetchMembers({ q, status, role }, cursor, limit, signal),
     [q, status, role],
   );
-  const list = usePagedList(fetchPage);
+  const list = usePagedList(
+    `admin/members?q=${encodeURIComponent(q)}&status=${status ?? ''}&role=${role ?? ''}`,
+    fetchPage,
+    { pageSize: ADMIN_PAGE_SIZE },
+  );
   const filtered = q !== '' || status !== null || role !== null;
 
   const clearFilters = () => {
@@ -54,12 +58,13 @@ export function AdminMembers() {
     setRole(null);
   };
 
-  const handleApproved = (updated: AdminMember) => {
-    const { id } = updated.member;
+  /** Keeps the list in step with a decision: out of a status filter it no longer matches. */
+  const handleReviewed = (updated: AdminMember) => {
+    const { id, status: decided } = updated.member;
     list.update((items) =>
-      status === 'pending'
+      status !== null && status !== decided
         ? items.filter((item) => item.id !== id)
-        : items.map((item) => (item.id === id ? { ...item, status: 'approved' } : item)),
+        : items.map((item) => (item.id === id ? { ...item, status: decided } : item)),
     );
   };
 
@@ -91,6 +96,7 @@ export function AdminMembers() {
             { value: '', label: 'Everyone' },
             { value: 'pending', label: 'Pending' },
             { value: 'approved', label: 'Approved' },
+            { value: 'rejected', label: 'Not approved' },
           ]}
           onChange={(value) => {
             setStatus(asStatus(value));
@@ -118,7 +124,7 @@ export function AdminMembers() {
         onClose={() => {
           setOpen(null);
         }}
-        onApproved={handleApproved}
+        onReviewed={handleReviewed}
       />
     </section>
   );

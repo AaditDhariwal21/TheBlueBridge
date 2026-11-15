@@ -32,6 +32,13 @@ describe('reversible migrations', { skip: skipWithoutDatabase }, () => {
     directoryIndex: `to_regclass('public.users_directory_idx') is not null`,
     searchVector: `exists (select 1 from information_schema.columns where table_name = 'blogs' and column_name = 'search_vector')`,
     searchIndex: `to_regclass('public.blogs_search_idx') is not null`,
+    purgeFunction: `exists (select 1 from pg_proc where proname = 'purge_soft_deleted')`,
+    purgeRuns: `to_regclass('public.purge_runs') is not null`,
+    commentsBlogIndex: `to_regclass('public.comments_blog_idx') is not null`,
+    reviewNote: `exists (select 1 from information_schema.columns where table_name = 'users' and column_name = 'review_note')`,
+    historyIndex: `to_regclass('public.admin_action_logs_target_idx') is not null`,
+    connections: `to_regclass('public.user_jodhpur_connections') is not null`,
+    journeyStage: `exists (select 1 from information_schema.columns where table_name = 'users' and column_name = 'journey_stage_id')`,
   };
 
   it('has a down script for each migration from 0007 on, and none without one', async () => {

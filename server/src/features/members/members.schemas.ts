@@ -1,8 +1,10 @@
 import { z } from 'zod';
 
+import { REVIEW_NOTE_MAX } from '../../../../shared/limits.ts';
 import { USER_ROLES } from '../../db/schema.ts';
 import { cursorCodec } from '../../lib/cursor.ts';
 import { normalizeSingleLine } from '../../lib/text.ts';
+import { optionalSingleLineText, singleLineText } from '../../lib/validation.ts';
 
 /** The directory's sort key of the last row: role rank, lowercased name, id. */
 export const directoryCursor = cursorCodec(
@@ -60,6 +62,26 @@ export const adminMembersQuery = z.strictObject({
     .pipe(z.string().max(100, { error: 'Keep the search under 100 characters.' }))
     .transform((value) => value || undefined)
     .optional(),
-  status: z.enum(['pending', 'approved'], { error: 'Choose pending or approved.' }).optional(),
+  status: z
+    .enum(['pending', 'approved', 'rejected'], {
+      error: 'Choose pending, approved or not approved.',
+    })
+    .optional(),
   role: z.enum(USER_ROLES, { error: 'Choose a role from the list.' }).optional(),
 });
+
+/**
+ * POST /admin/members/:id/approve: `{ note? }`. The note is optional; when given, the member
+ * sees it as a message from the team, and it is kept in the admin log.
+ */
+export const approveBody = z
+  .strictObject({ note: optionalSingleLineText(REVIEW_NOTE_MAX) })
+  .optional()
+  .transform((body) => body?.note ?? null);
+
+/** POST /admin/members/:id/reject: `{ note }`, required: it tells the applicant why. */
+export const rejectBody = z
+  .strictObject({
+    note: singleLineText(1, REVIEW_NOTE_MAX, 'Write a message to the applicant.'),
+  })
+  .transform((body) => body.note);

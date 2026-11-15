@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 
 import { useToast } from '../../components/ui/toast';
 import { ApiError, retryTransient } from '../../lib/api';
+import { clearQueryCache, onRevalidate } from '../../lib/queryCache';
 import { fetchMe } from './api';
 import {
   AuthContext,
@@ -35,6 +36,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [notice, setNotice] = useState<'noAccount' | undefined>(undefined);
   const [reloadKey, setReloadKey] = useState(0);
+  const [refreshKey, setRefreshKey] = useState(0);
   const toast = useToast();
   /** What to say once the next profile arrives (set by signIn and checkApproval). */
   const announce = useRef<'signedIn' | 'checked' | null>(null);
@@ -62,6 +64,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       unsubscribe?.();
     };
   }, []);
+
+  // Cached API data belongs to whoever was signed in: another account (or none) starts afresh.
+  const cachedFor = useRef<string | null | undefined>(undefined);
+  useEffect(() => {
+    if (userId === undefined) return;
+    if (cachedFor.current !== undefined && cachedFor.current !== userId) clearQueryCache();
+    cachedFor.current = userId;
+  }, [userId]);
+
+  /** Toasts for a fresh profile: welcome after signing in, and news about the application. */
+  const greet = useCallback(
+    (me: Me) => {
+      const firstName = me.name.split(' ')[0] ?? me.name;
+      const previous = lastSeen.current;
+      const reason = announce.current;
+      announce.current = null;
+      lastSeen.current = { userId: me.id, status: me.status };
+
+      const decided = previous?.userId === me.id && previous.status === 'pending';
+      if (decided && me.status === 'approved') {
+        toast.success(`Your account is approved, ${firstName}. Welcome to The Blue Bridge!`);
+      } else if (decided && me.status === 'rejected') {
+        toast.info('There’s news about your application. See the message from our team.');
+      } else if (reason === 'signedIn') {
+        if (me.status === 'approved') toast.success(`Welcome back, ${firstName}.`);
+        else if (me.status === 'pending') {
+          toast.info('You’re signed in. Your account is waiting for an admin’s approval.');
+        } else toast.info('You’re signed in.');
+      } else if (reason === 'checked' && me.status === 'pending') {
+        toast.info('Still waiting for approval. We’ll let you in as soon as an admin approves.');
+      }
+    },
+    [toast],
+  );
 
   useEffect(() => {
     if (typeof userId !== 'string') return;
@@ -92,30 +128,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     })();
 
-    /** Toasts for this profile: welcome after signing in, and news about approval. */
-    function greet(me: Me) {
-      const firstName = me.name.split(' ')[0] ?? me.name;
-      const previous = lastSeen.current;
-      const reason = announce.current;
-      announce.current = null;
-      lastSeen.current = { userId: me.id, status: me.status };
-
-      if (previous?.userId === me.id && previous.status === 'pending' && me.status === 'approved') {
-        toast.success(`Your account is approved, ${firstName}. Welcome to The Blue Bridge!`);
-      } else if (reason === 'signedIn') {
-        if (me.status === 'approved') toast.success(`Welcome back, ${firstName}.`);
-        else if (me.status === 'pending') {
-          toast.info('You’re signed in. Your account is waiting for an admin’s approval.');
-        } else toast.info('You’re signed in.');
-      } else if (reason === 'checked' && me.status === 'pending') {
-        toast.info('Still waiting for approval. We’ll let you in as soon as an admin approves.');
-      }
-    }
-
     return () => {
       stale.abort();
     };
-  }, [userId, reloadKey, toast]);
+  }, [userId, reloadKey, greet]);
+
+  // A background refresh: the current profile stays on screen until the fresh one arrives;
+  // a failure keeps it (the next refresh tries again).
+  useEffect(() => {
+    if (refreshKey === 0 || typeof userId !== 'string') return;
+    const stale = new AbortController();
+    void (async () => {
+      const token = await getAccessToken().catch(() => null);
+      if (token === null) return;
+      try {
+        const me = await fetchMe(token, stale.signal);
+        if (stale.signal.aborted) return;
+        setProfile({ status: 'ready', userId, me });
+        greet(me);
+      } catch {
+        // Kept as it is.
+      }
+    })();
+    return () => {
+      stale.abort();
+    };
+  }, [refreshKey, userId, greet]);
 
   const signIn = useCallback(async (email: string, password: string): Promise<SignInResult> => {
     const supabase = await getSupabase();
@@ -141,26 +179,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setReloadKey((key) => key + 1);
   }, []);
 
+  const refresh = useCallback(() => {
+    setRefreshKey((key) => key + 1);
+  }, []);
+
+  const setMe = useCallback((me: Me) => {
+    lastSeen.current = { userId: me.id, status: me.status };
+    setProfile({ status: 'ready', userId: me.id, me });
+  }, []);
+
   const checkApproval = useCallback(() => {
     announce.current = 'checked';
-    reload();
-  }, [reload]);
+    refresh();
+  }, [refresh]);
 
-  // Still failing after the retries: try again by itself when the tab comes back
-  // into view or the network returns, instead of waiting for a click.
-  const profileFailed = profile?.status === 'error';
+  // With the rest of the app's data (lib/queryCache.ts): when the tab comes back into view,
+  // regains focus or the network returns, refresh the profile, or retry it if it failed.
+  const profileStatus = profile?.status;
   useEffect(() => {
-    if (!profileFailed) return;
-    const onVisible = () => {
-      if (document.visibilityState === 'visible') reload();
-    };
-    window.addEventListener('online', reload);
-    document.addEventListener('visibilitychange', onVisible);
-    return () => {
-      window.removeEventListener('online', reload);
-      document.removeEventListener('visibilitychange', onVisible);
-    };
-  }, [profileFailed, reload]);
+    if (typeof userId !== 'string') return;
+    return onRevalidate(profileStatus === 'error' ? reload : refresh);
+  }, [userId, profileStatus, reload, refresh]);
 
   const state = useMemo((): AuthState => {
     if (!authConfigured) return { status: 'signedOut', notice: 'notConfigured' };
@@ -172,8 +211,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [userId, profile, notice]);
 
   const value = useMemo<AuthContextValue>(
-    () => ({ state, signIn, signOut, reload, checkApproval }),
-    [state, signIn, signOut, reload, checkApproval],
+    () => ({ state, signIn, signOut, reload, refresh, setMe, checkApproval }),
+    [state, signIn, signOut, reload, refresh, setMe, checkApproval],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

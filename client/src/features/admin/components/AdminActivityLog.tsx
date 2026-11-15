@@ -8,7 +8,7 @@ import { StateMessage } from '../../../components/ui/StateMessage';
 import { cn } from '../../../lib/cn';
 import { usePagedList } from '../../../lib/usePagedList';
 import { RelativeTime } from '../../blogs/components/shared/RelativeTime';
-import { fetchActivity } from '../api';
+import { ADMIN_PAGE_SIZE, fetchActivity } from '../api';
 import { ACTION_LABELS } from '../paths';
 import type { AdminAction, AdminActionEntry } from '../types';
 
@@ -19,10 +19,13 @@ const WHEN = new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium', timeStyle: 
 export function AdminActivityLog() {
   const [action, setAction] = useState<AdminAction | null>(null);
   const fetchPage = useCallback(
-    (cursor: string | null, signal: AbortSignal) => fetchActivity(action, cursor, signal),
+    (cursor: string | null, limit: number, signal: AbortSignal) =>
+      fetchActivity(action, cursor, limit, signal),
     [action],
   );
-  const list = usePagedList(fetchPage);
+  const list = usePagedList(`admin/action-logs?action=${action ?? ''}`, fetchPage, {
+    pageSize: ADMIN_PAGE_SIZE,
+  });
   const { items, status, hasMore } = list;
   const replacing = status === 'loading' && !hasMore && items.length > 0;
 

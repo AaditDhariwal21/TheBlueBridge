@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Link, useNavigate } from 'react-router';
 
 import { Container } from '../components/layout/Container';
@@ -9,20 +10,28 @@ import { useAuth } from '../features/auth/authContext';
 import { ADMIN_PATH } from '../features/admin/paths';
 import { AccountSummary } from '../features/auth/components/AccountSummary';
 import { AuthShell } from '../features/auth/components/AuthShell';
-import { canUseAdminPanel } from '../features/auth/permissions';
+import { TeamMessage } from '../features/auth/components/TeamMessage';
+import { AUTH_PATHS } from '../features/auth/paths';
+import { canReapply, canUseAdminPanel } from '../features/auth/permissions';
 import { MyBlogs, MyComments } from '../features/blogs/components/mine/MyActivity';
 import type { Me } from '../features/auth/types';
-import { formatReferralCode } from '../features/auth/validation';
 import { MyReferrals } from '../features/referrals/components/MyReferrals';
+import { ReferralCodeCard } from '../features/referrals/components/ReferralCodeCard';
 
 /**
- * The signed-in user's status. Pending users see that they are waiting for
- * approval (and can keep browsing); approved users see their referral code.
- * Rendered inside RequireAuth, so there is always a profile.
+ * The signed-in user's account. Pending users see that they are waiting for approval (and
+ * can keep browsing); a rejected applicant sees the team's message and can reapply; approved
+ * users get their dashboard with their referral code. Rendered inside RequireAuth, so there
+ * is always a profile. Entering the page refreshes it.
  */
 export function AccountPage() {
-  const { state, signOut, checkApproval } = useAuth();
+  const { state, signOut, checkApproval, refresh } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
   if (state.status !== 'signedIn') return null;
   const { me } = state;
   const firstName = me.name.split(' ')[0] ?? me.name;
@@ -71,6 +80,35 @@ export function AccountPage() {
     );
   }
 
+  if (canReapply(me)) {
+    return (
+      <AuthShell
+        eyebrow="Your account"
+        title="Your application wasn’t approved"
+        intro={
+          <p>
+            Thank you for applying, {firstName}. The team has looked at your application and
+            couldn’t approve it this time.
+          </p>
+        }
+      >
+        <div className="flex flex-col gap-6">
+          {me.reviewNote && <TeamMessage note={me.reviewNote} />}
+          <p className="text-sm text-text-muted">
+            You’re welcome to apply again. Your previous answers are filled in, so you only need to
+            change what the team asked about. You can also apply in a different role.
+          </p>
+          <div className="flex flex-wrap gap-3">
+            <Link to={AUTH_PATHS.reapply} className={buttonClasses()}>
+              Reapply
+            </Link>
+            {signOutButton}
+          </div>
+        </div>
+      </AuthShell>
+    );
+  }
+
   if (me.status !== 'approved') {
     return (
       <AuthShell
@@ -102,19 +140,8 @@ export function AccountPage() {
 
         <div className="mt-8 grid items-start gap-6 lg:grid-cols-12 lg:gap-8">
           <Card accent="blue" className="flex flex-col gap-6 lg:sticky lg:top-24 lg:col-span-5">
-            {me.referralCode && (
-              <section aria-labelledby="referral-code-title" className="border border-border p-4">
-                <h2 id="referral-code-title" className="font-sans text-sm text-text-muted">
-                  Your referral code
-                </h2>
-                <p className="mt-1 font-display text-h3 tracking-caps select-all">
-                  {formatReferralCode(me.referralCode)}
-                </p>
-                <p className="mt-2 text-xs text-text-muted">
-                  Share it with women you’d like to invite. It works while your account is active.
-                </p>
-              </section>
-            )}
+            {me.referralCode && <ReferralCodeCard code={me.referralCode} />}
+            {me.reviewNote && <TeamMessage note={me.reviewNote} />}
             <AccountSummary me={me} roleLabel="Role" />
             {canUseAdminPanel(me) ? (
               // Admins: the panel takes the primary slot; the other two share the row below.
@@ -154,7 +181,9 @@ export function AccountPage() {
 function welcomeLine(me: Me): string {
   if (me.role === 'admin') return 'You’re an admin of The Blue Bridge.';
   if (me.role === 'ambassador') {
-    const names = me.categories.map((category) => category.name).join(' and ');
+    const names = new Intl.ListFormat('en', { type: 'conjunction' }).format(
+      me.categories.map((category) => category.name),
+    );
     return names ? `You’re an ambassador for ${names}.` : 'You’re an ambassador.';
   }
   return 'You’re a member of The Blue Bridge.';

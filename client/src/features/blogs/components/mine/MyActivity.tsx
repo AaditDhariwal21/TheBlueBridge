@@ -18,16 +18,17 @@ const PAGE_SIZE = 5;
 /** On someone's profile: a glimpse first, then full pages on "Show more". */
 const PROFILE_FIRST_PAGE = 2;
 
-const fetchMyBlogs = (cursor: string | null) => blogsApi.listMyBlogs({ cursor, limit: PAGE_SIZE });
-const fetchMyComments = (cursor: string | null) =>
-  blogsApi.listMyComments({ cursor, limit: PAGE_SIZE });
+const fetchMyBlogs = (cursor: string | null, limit: number, signal: AbortSignal) =>
+  blogsApi.listMyBlogs({ cursor, limit }, signal);
+const fetchMyComments = (cursor: string | null, limit: number, signal: AbortSignal) =>
+  blogsApi.listMyComments({ cursor, limit }, signal);
 
 const pathOf = (blog: { id: string; type: 'discussion' | 'query' }) =>
   blog.type === 'query' ? queryBlogPath(blog.id) : blogPath(blog.id);
 
 /** "My blogs": the member's own blogs and Query Blogs, newest first. */
 export function MyBlogs() {
-  const list = usePagedList(fetchMyBlogs);
+  const list = usePagedList('me/blogs', fetchMyBlogs, { pageSize: PAGE_SIZE });
   return (
     <ActivitySection
       title="My blogs"
@@ -50,7 +51,7 @@ export function MyBlogs() {
 
 /** "My comments": the member's own comments, queries and replies, newest first. */
 export function MyComments() {
-  const list = usePagedList(fetchMyComments);
+  const list = usePagedList('me/comments', fetchMyComments, { pageSize: PAGE_SIZE });
   return (
     <ActivitySection
       title="My comments"
@@ -64,25 +65,18 @@ export function MyComments() {
 /** A member's blogs and comments, inside their profile panel. */
 export function AuthorActivity({ authorId }: { authorId: string }) {
   const fetchBlogs = useCallback(
-    (cursor: string | null) =>
-      blogsApi.listAuthorBlogs({
-        authorId,
-        cursor,
-        limit: cursor === null ? PROFILE_FIRST_PAGE : PAGE_SIZE,
-      }),
+    (cursor: string | null, limit: number, signal: AbortSignal) =>
+      blogsApi.listAuthorBlogs({ authorId, cursor, limit }, signal),
     [authorId],
   );
   const fetchComments = useCallback(
-    (cursor: string | null) =>
-      blogsApi.listAuthorComments({
-        authorId,
-        cursor,
-        limit: cursor === null ? PROFILE_FIRST_PAGE : PAGE_SIZE,
-      }),
+    (cursor: string | null, limit: number, signal: AbortSignal) =>
+      blogsApi.listAuthorComments({ authorId, cursor, limit }, signal),
     [authorId],
   );
-  const blogs = usePagedList(fetchBlogs);
-  const comments = usePagedList(fetchComments);
+  const sizes = { pageSize: PAGE_SIZE, firstPageSize: PROFILE_FIRST_PAGE };
+  const blogs = usePagedList(`members/${authorId}/blogs`, fetchBlogs, sizes);
+  const comments = usePagedList(`members/${authorId}/comments`, fetchComments, sizes);
 
   return (
     <div className="flex flex-col gap-6">

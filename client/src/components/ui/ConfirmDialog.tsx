@@ -16,8 +16,11 @@ interface ConfirmDialogProps {
   busyLabel: string;
   /** `danger` for destructive actions. */
   tone?: 'default' | 'danger';
-  /** Offers an optional, length-limited reason (recorded with the action). */
-  reason?: { label: string; max: number };
+  /**
+   * Asks for a length-limited reason or note (recorded with the action): optional unless
+   * `required`. `hint` replaces the default explanation under the field.
+   */
+  reason?: { label: string; max: number; required?: boolean; hint?: string };
   /** Resolves when done (the parent then closes the dialog); a rejection is shown here. */
   onConfirm: (reason: string | null) => Promise<void>;
   onClose: () => void;
@@ -57,8 +60,15 @@ export function ConfirmDialog({
     event.preventDefault();
     if (busy) return;
     const trimmed = text.replace(/\s+/g, ' ').trim();
-    if (reason && trimmed.length > reason.max) {
-      setReasonError(`Keep the reason under ${reason.max} characters.`);
+    const problem = !reason
+      ? null
+      : reason.required && !trimmed
+        ? `Write a ${reason.label.toLowerCase()}.`
+        : trimmed.length > reason.max
+          ? `Keep it under ${reason.max} characters.`
+          : null;
+    if (problem) {
+      setReasonError(problem);
       reasonRef.current?.focus();
       return;
     }
@@ -89,14 +99,16 @@ export function ConfirmDialog({
           {reason && (
             <Field
               label={reason.label}
-              hint={`Optional. Up to ${reason.max} characters; kept in the activity log.`}
+              hint={
+                reason.hint ?? `Optional. Up to ${reason.max} characters; kept in the activity log.`
+              }
               error={reasonError}
             >
               {(control) => (
                 <Textarea
                   {...control}
                   ref={reasonRef}
-                  rows={2}
+                  rows={reason.required ? 4 : 2}
                   value={text}
                   onChange={(e) => {
                     setText(e.target.value);

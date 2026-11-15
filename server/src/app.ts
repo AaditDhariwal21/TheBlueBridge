@@ -12,6 +12,7 @@ import { categoriesRoutes } from './features/categories/categories.routes.ts';
 import { commentsRoutes } from './features/comments/comments.routes.ts';
 import { healthRoutes } from './features/health/health.routes.ts';
 import { membersRoutes } from './features/members/members.routes.ts';
+import { profileOptionsRoutes } from './features/profileOptions/profileOptions.routes.ts';
 import { referralsRoutes } from './features/referrals/referrals.routes.ts';
 import { usersRoutes } from './features/users/users.routes.ts';
 import type { AccessTokenVerifier } from './lib/accessToken.ts';
@@ -73,8 +74,9 @@ function apiRouter(deps: AppDeps): Router {
 
   router.use(healthRoutes()); //                     GET  /health
   router.use(categoriesRoutes(deps)); //             GET  /categories
+  router.use(profileOptionsRoutes(deps)); //         GET  /profile-options
   router.use('/auth', authRoutes(deps)); //          POST /auth/signup, /auth/referral-codes/validate
-  router.use(usersRoutes(withAuth)); //              GET  /me
+  router.use(usersRoutes(withAuth)); //              GET  /me, POST /me/reapply
   router.use(membersRoutes(withAuth)); //            GET  /members[/:id], /users/:id
   router.use(referralsRoutes(withAuth)); //          GET  /me/referrals
   router.use(blogsRoutes(withAuth)); //              /blogs[/:id], /query-blogs[/:id], /me/blogs

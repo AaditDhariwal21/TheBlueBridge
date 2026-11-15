@@ -29,39 +29,43 @@ export interface BlogsApi {
     signal?: AbortSignal,
   ): Promise<Page<Blog>>;
   /** Resolves to `null` when no live blog has this id. */
-  getBlog(id: string): Promise<Blog | null>;
+  getBlog(id: string, signal?: AbortSignal): Promise<Blog | null>;
   createBlog(input: NewBlogInput): Promise<Blog>;
   /** Moderators only, for discussion blogs. */
   deleteBlog(id: string): Promise<void>;
 
-  listComments(subject: CommentSubject): Promise<Comment[]>;
+  listComments(subject: CommentSubject, signal?: AbortSignal): Promise<Comment[]>;
   createComment(input: NewCommentInput): Promise<Comment>;
-  /** Moderators only. The comment stays in the thread as "removed". */
+  /** Moderators only. It stays in the thread, blank, only while live replies hang from it. */
   deleteComment(subject: CommentSubject, commentId: string): Promise<void>;
 
-  listQueryBlogs(): Promise<QueryBlog[]>;
+  listQueryBlogs(signal?: AbortSignal): Promise<QueryBlog[]>;
   /** Resolves to `null` when no live Query Blog has this id. */
-  getQueryBlog(id: string): Promise<QueryBlog | null>;
+  getQueryBlog(id: string, signal?: AbortSignal): Promise<QueryBlog | null>;
   /** Admins only. One per category. Logged in the admin activity log. */
   createQueryBlog(input: NewQueryBlogInput): Promise<QueryBlog>;
   /** Admins only: removes a Query Blog and its queries, with an optional logged reason. */
   deleteQueryBlog(id: string, reason: string | null): Promise<void>;
 
   /** The signed-in member's own blogs and Query Blogs, newest first. */
-  listMyBlogs(params: { cursor: string | null; limit: number }): Promise<Page<MyBlog>>;
+  listMyBlogs(
+    params: { cursor: string | null; limit: number },
+    signal?: AbortSignal,
+  ): Promise<Page<MyBlog>>;
   /** The signed-in member's own live comments, queries and replies, newest first. */
-  listMyComments(params: { cursor: string | null; limit: number }): Promise<Page<MyComment>>;
+  listMyComments(
+    params: { cursor: string | null; limit: number },
+    signal?: AbortSignal,
+  ): Promise<Page<MyComment>>;
 
   /** A member's live blogs and Query Blogs, newest first (on their profile; approved viewers). */
-  listAuthorBlogs(params: {
-    authorId: string;
-    cursor: string | null;
-    limit: number;
-  }): Promise<Page<MyBlog>>;
+  listAuthorBlogs(
+    params: { authorId: string; cursor: string | null; limit: number },
+    signal?: AbortSignal,
+  ): Promise<Page<MyBlog>>;
   /** A member's live comments, queries and replies, newest first (on their profile). */
-  listAuthorComments(params: {
-    authorId: string;
-    cursor: string | null;
-    limit: number;
-  }): Promise<Page<MyComment>>;
+  listAuthorComments(
+    params: { authorId: string; cursor: string | null; limit: number },
+    signal?: AbortSignal,
+  ): Promise<Page<MyComment>>;
 }

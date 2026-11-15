@@ -12,9 +12,10 @@ export function toReferralsPage(data: ReferralsDto): Page<Referral> {
 /** The signed-in member's own referrals, newest first, with the total. */
 export async function fetchMyReferrals(
   cursor: string | null,
+  limit: number,
   signal: AbortSignal,
 ): Promise<Page<Referral>> {
-  const params = new URLSearchParams({ limit: String(REFERRALS_PAGE_SIZE) });
+  const params = new URLSearchParams({ limit: String(limit) });
   if (cursor !== null) params.set('cursor', cursor);
   const data = (await apiRequest(`/me/referrals?${params}`, {
     token: await getAccessToken(),

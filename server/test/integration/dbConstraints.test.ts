@@ -24,6 +24,7 @@ describe('database constraints and triggers', { skip: skipWithoutDatabase }, () 
   let tech: string;
   let finance: string;
   let legal: string;
+  let health: string;
   let author: TestUser;
 
   before(async () => {
@@ -31,6 +32,7 @@ describe('database constraints and triggers', { skip: skipWithoutDatabase }, () 
     tech = await categoryId(t.db, 'Tech');
     finance = await categoryId(t.db, 'Finance');
     legal = await categoryId(t.db, 'Legal');
+    health = await categoryId(t.db, 'Health');
   });
   after(async () => {
     await t.drop();
@@ -44,13 +46,13 @@ describe('database constraints and triggers', { skip: skipWithoutDatabase }, () 
     t.db.insertInto('user_categories').values({ user_id: userId, cat_id: catId }).execute();
 
   describe('ambassador categories', () => {
-    it('allows up to 2 categories and refuses a third', async () => {
+    it('allows up to 3 categories and refuses a fourth', async () => {
       const ambassador = await insertUser(t.db, {
         role: 'ambassador',
-        categories: ['Tech', 'Finance'],
+        categories: ['Tech', 'Finance', 'Legal'],
       });
-      const error = await pgError(addCategory(ambassador.id, legal));
-      assert.equal(error.constraint, 'user_categories_max_two');
+      const error = await pgError(addCategory(ambassador.id, health));
+      assert.equal(error.constraint, 'user_categories_max_three');
     });
 
     it('refuses categories for members and admins', async () => {
@@ -76,7 +78,10 @@ describe('database constraints and triggers', { skip: skipWithoutDatabase }, () 
     });
 
     it('holds the limit when two transactions add categories at the same time', async () => {
-      const ambassador = await insertUser(t.db, { role: 'ambassador', categories: ['Tech'] });
+      const ambassador = await insertUser(t.db, {
+        role: 'ambassador',
+        categories: ['Tech', 'Health'],
+      });
       const first = await t.pool.connect();
       const second = await t.pool.connect();
       try {
@@ -98,12 +103,12 @@ describe('database constraints and triggers', { skip: skipWithoutDatabase }, () 
         racing.catch(() => null); // inspected below
 
         // Without the owner-row lock the second insert would finish here, seeing
-        // only 2 categories, and the ambassador would end up with 3.
+        // only 3 categories, and the ambassador would end up with 4.
         await waitUntil(async () => settled || (await isWaitingOnLock(t.pool, secondPid)));
         assert.equal(settled, false, 'the second insert should wait for the first transaction');
 
         await first.query('commit');
-        assert.equal((await pgError(racing)).constraint, 'user_categories_max_two');
+        assert.equal((await pgError(racing)).constraint, 'user_categories_max_three');
       } finally {
         await second.query('rollback');
         first.release();

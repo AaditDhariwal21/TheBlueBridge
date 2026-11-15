@@ -3,9 +3,8 @@ import type { RequestHandler } from 'express';
 import type { Db } from '../../db/schema.ts';
 import { parseInput } from '../../lib/validation.ts';
 import { viewerOf } from '../../middleware/authenticate.ts';
-import { adminReasonBody } from '../adminLog/adminLog.schemas.ts';
 import { listReferralsQuery } from '../referrals/referrals.schemas.ts';
-import { adminMembersQuery, directoryQuery } from './members.schemas.ts';
+import { adminMembersQuery, approveBody, directoryQuery, rejectBody } from './members.schemas.ts';
 import {
   approveMember,
   getMemberForAdmin,
@@ -16,6 +15,7 @@ import {
   listDirectory,
   listMemberReferrals,
   listMembersForAdmin,
+  rejectMember,
 } from './members.service.ts';
 
 interface Deps {
@@ -77,9 +77,18 @@ export function listMemberReferralsHandler({ db }: Deps): ByUser {
   };
 }
 
+/** Body `{ note? }`: shown to the member and kept in the admin log. */
 export function approveMemberHandler({ db }: Deps): ByUser {
   return async (req, res) => {
-    const reason = parseInput(adminReasonBody, req.body);
-    res.json(await approveMember(db, viewerOf(req), req.params.userId, reason));
+    const note = parseInput(approveBody, req.body);
+    res.json(await approveMember(db, viewerOf(req), req.params.userId, note));
+  };
+}
+
+/** Body `{ note }` (required): shown to the applicant and kept in the admin log. */
+export function rejectMemberHandler({ db }: Deps): ByUser {
+  return async (req, res) => {
+    const note = parseInput(rejectBody, req.body);
+    res.json(await rejectMember(db, viewerOf(req), req.params.userId, note));
   };
 }

@@ -11,6 +11,7 @@ import {
   getOverviewHandler,
   listMemberReferralsHandler,
   listMembersForAdminHandler,
+  rejectMemberHandler,
 } from '../members/members.handlers.ts';
 
 /**
@@ -29,6 +30,7 @@ export function adminRoutes(deps: { db: Db; requireAuth: RequestHandler }): Rout
   router.get('/members/:userId', getMemberForAdminHandler(deps));
   router.get('/members/:userId/referrals', listMemberReferralsHandler(deps));
   router.post('/members/:userId/approve', approveMemberHandler(deps));
+  router.post('/members/:userId/reject', rejectMemberHandler(deps));
 
   router.post('/query-blogs', createQueryBlogHandler(deps));
   router.delete('/query-blogs/:blogId', deleteQueryBlogHandler(deps));

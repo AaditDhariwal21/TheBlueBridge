@@ -3,13 +3,14 @@ import { describe, it } from 'node:test';
 
 import { USER_STATUSES, type UserRole, type UserStatus } from '../db/schema.ts';
 import {
-  canApproveMember,
   canComment,
   canCreateQueryBlog,
   canDeleteQueryBlog,
   canModerate,
   canPostQuery,
+  canReapply,
   canReplyUnderQuery,
+  canReviewApplication,
   canUseAdminPanel,
   canWriteBlog,
   isApproved,
@@ -90,6 +91,13 @@ describe('canReplyUnderQuery', () => {
     assert.equal(canReplyUnderQuery(admin, { ...techQuery, categoryId: LEGAL }), true);
   });
 
+  it('gives the author of a removed query no say, but keeps ambassadors and admins', () => {
+    const removed = { authorId: null, categoryId: TECH };
+    assert.equal(canReplyUnderQuery(member, removed), false);
+    assert.equal(canReplyUnderQuery(ambassador, removed), true);
+    assert.equal(canReplyUnderQuery(admin, removed), true);
+  });
+
   it('gives no power before approval, even to the query author', () => {
     const pendingAuthor = actor('member', { status: 'pending', id: 'author' });
     assert.equal(canReplyUnderQuery(pendingAuthor, { ...techQuery, authorId: 'author' }), false);
@@ -162,24 +170,39 @@ describe('canUseAdminPanel and canDeleteQueryBlog', () => {
   }
 });
 
-describe('canApproveMember', () => {
+describe('canReviewApplication', () => {
   const applicant = (role: UserRole, status: UserStatus = 'pending') => ({ role, status });
 
-  it('lets an approved admin approve a pending member or ambassador', () => {
-    assert.equal(canApproveMember(admin, applicant('member')), true);
-    assert.equal(canApproveMember(admin, applicant('ambassador')), true);
+  it('lets an approved admin review a pending member or ambassador', () => {
+    assert.equal(canReviewApplication(admin, applicant('member')), true);
+    assert.equal(canReviewApplication(admin, applicant('ambassador')), true);
   });
 
   it('refuses anyone who is not pending, and pending admins', () => {
     for (const status of USER_STATUSES.filter((s) => s !== 'pending')) {
-      assert.equal(canApproveMember(admin, applicant('member', status)), false, status);
+      assert.equal(canReviewApplication(admin, applicant('member', status)), false, status);
     }
-    assert.equal(canApproveMember(admin, applicant('admin')), false);
+    assert.equal(canReviewApplication(admin, applicant('admin')), false);
   });
 
   it('refuses non-admins and unapproved admins', () => {
     for (const who of [member, ambassador, null, actor('admin', { status: 'pending' })]) {
-      assert.equal(canApproveMember(who, applicant('member')), false);
+      assert.equal(canReviewApplication(who, applicant('member')), false);
     }
+  });
+});
+
+describe('canReapply', () => {
+  it('lets a rejected member or ambassador reapply', () => {
+    assert.equal(canReapply(actor('member', { status: 'rejected' })), true);
+    assert.equal(canReapply(actor('ambassador', { status: 'rejected' })), true);
+  });
+
+  it('refuses every other status, admins and visitors', () => {
+    for (const status of USER_STATUSES.filter((s) => s !== 'rejected')) {
+      assert.equal(canReapply(actor('member', { status })), false, status);
+    }
+    assert.equal(canReapply(actor('admin', { status: 'rejected' })), false);
+    assert.equal(canReapply(null), false);
   });
 });

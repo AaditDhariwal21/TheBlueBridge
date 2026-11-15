@@ -37,11 +37,18 @@ interface CommentItemProps {
   flat?: boolean;
 }
 
+/** How a comment is named in labels; a removed one has no author to name. */
+function nameOf(comment: CommentNode['comment']): string {
+  return comment.author?.name ?? 'a deleted comment';
+}
+
 export function CommentItem({ node, depth, flat = false }: CommentItemProps) {
   const ui = useThreadUi();
   const replyButtonRef = useRef<HTMLButtonElement>(null);
   const { comment } = node;
+  const { author } = comment;
   const domId = commentDomId(comment.id);
+  const noun = depth === 0 ? ui.copy.entryNoun[0] : 'reply';
 
   const size = depth === 0 ? LAYOUT.top : LAYOUT.reply;
   const parent = comment.parentId ? ui.byId.get(comment.parentId) : undefined;
@@ -50,7 +57,7 @@ export function CommentItem({ node, depth, flat = false }: CommentItemProps) {
   const collapsed = nests && ui.collapsed.has(comment.id);
   const canReply = ui.canReply(comment.id);
   const isReplying = canReply && ui.replyingTo === comment.id;
-  const isAuthor = ui.authorId !== null && ui.authorId === comment.author.id;
+  const isAuthor = author !== null && ui.authorId === author.id;
   const repliesId = `${domId}-replies`;
   const replyCount = plural(node.descendantCount, 'reply', 'replies');
 
@@ -63,7 +70,7 @@ export function CommentItem({ node, depth, flat = false }: CommentItemProps) {
     <article
       id={domId}
       tabIndex={-1}
-      aria-labelledby={`${domId}-author`}
+      aria-labelledby={author ? `${domId}-author` : `${domId}-removed`}
       className={cn(
         'relative scroll-mt-24',
         ui.fresh.has(comment.id) && 'motion-safe:animate-arrive',
@@ -81,7 +88,18 @@ export function CommentItem({ node, depth, flat = false }: CommentItemProps) {
 
       <div className={cn('flex', size.gap)}>
         <div className={cn('relative shrink-0', size.column)}>
-          <Avatar user={comment.author} size={depth === 0 ? 'md' : 'sm'} />
+          {author ? (
+            <Avatar user={author} size={depth === 0 ? 'md' : 'sm'} />
+          ) : (
+            // A removed comment: an empty circle where the avatar was, no identity.
+            <span
+              aria-hidden="true"
+              className={cn(
+                'block rounded-full border border-dashed border-border-strong',
+                depth === 0 ? 'size-9' : 'size-7',
+              )}
+            />
+          )}
           {nests && !collapsed && (
             <button
               type="button"
@@ -90,7 +108,7 @@ export function CommentItem({ node, depth, flat = false }: CommentItemProps) {
               }}
               aria-expanded="true"
               aria-controls={repliesId}
-              aria-label={`Collapse ${replyCount} to ${comment.author.name}`}
+              aria-label={`Collapse ${replyCount} to ${nameOf(comment)}`}
               title="Collapse thread"
               className={cn('group/line absolute bottom-0 cursor-pointer', size.lineTop, size.hit)}
             >
@@ -103,42 +121,48 @@ export function CommentItem({ node, depth, flat = false }: CommentItemProps) {
         </div>
 
         <div className="min-w-0 flex-1">
-          <header>
-            <p className="flex flex-wrap items-baseline gap-x-1.5 text-sm">
-              <span id={`${domId}-author`} className="font-medium wrap-anywhere text-text">
-                {comment.author.name}
-              </span>
-              {isAuthor && <AuthorTag />}
-              <span aria-hidden="true" className="text-text-muted">
-                ·
-              </span>
-              <RelativeTime iso={comment.createdAt} className="text-xs text-text-muted" />
-            </p>
-            <p className="truncate text-xs text-text-muted">{comment.author.profession}</p>
-            {parent && (
-              <p className="mt-1 flex min-w-0 items-center gap-1 text-xs text-text-muted">
-                <ElbowIcon className="size-3.5 text-accent-soft" />
-                <span className="truncate">
-                  Replying to{' '}
-                  {depth > 0 ? (
-                    <a
-                      href={`#${commentDomId(parent.comment.id)}`}
-                      className="text-accent underline-offset-2 hover:underline"
-                    >
-                      {parent.comment.author.name}
-                    </a>
-                  ) : (
-                    // Root of a focused thread: the parent isn't on screen to jump to.
-                    <span className="text-text">{parent.comment.author.name}</span>
-                  )}
+          {author ? (
+            <header>
+              <p className="flex flex-wrap items-baseline gap-x-1.5 text-sm">
+                <span id={`${domId}-author`} className="font-medium wrap-anywhere text-text">
+                  {author.name}
                 </span>
+                {isAuthor && <AuthorTag />}
+                <span aria-hidden="true" className="text-text-muted">
+                  ·
+                </span>
+                <RelativeTime iso={comment.createdAt} className="text-xs text-text-muted" />
               </p>
-            )}
-          </header>
+              <p className="truncate text-xs text-text-muted">{author.profession}</p>
+              {parent && (
+                <p className="mt-1 flex min-w-0 items-center gap-1 text-xs text-text-muted">
+                  <ElbowIcon className="size-3.5 text-accent-soft" />
+                  <span className="truncate">
+                    Replying to{' '}
+                    {depth > 0 ? (
+                      <a
+                        href={`#${commentDomId(parent.comment.id)}`}
+                        className="text-accent underline-offset-2 hover:underline"
+                      >
+                        {nameOf(parent.comment)}
+                      </a>
+                    ) : (
+                      // Root of a focused thread: the parent isn't on screen to jump to.
+                      <span className="text-text">{nameOf(parent.comment)}</span>
+                    )}
+                  </span>
+                </p>
+              )}
+            </header>
+          ) : null}
 
-          {comment.removed ? (
-            <p className="mt-2 text-sm text-text-muted italic">
-              This {depth === 0 ? ui.copy.entryNoun[0] : 'reply'} was removed by a moderator.
+          {comment.removed || !author ? (
+            // Kept only because replies hang from it: no text, no author, no actions.
+            <p
+              id={`${domId}-removed`}
+              className={cn('text-sm text-text-muted italic', depth === 0 ? 'pt-2' : 'pt-1')}
+            >
+              This {noun} was deleted.
             </p>
           ) : (
             <p className="mt-2 text-base wrap-break-word whitespace-pre-line text-text">
@@ -163,13 +187,13 @@ export function CommentItem({ node, depth, flat = false }: CommentItemProps) {
               >
                 <ReplyIcon />
                 Reply
-                <span className="sr-only"> to {comment.author.name}</span>
+                <span className="sr-only"> to {nameOf(comment)}</span>
               </button>
             )}
-            {ui.canRemove && !comment.removed && (
+            {ui.canRemove && !comment.removed && author && (
               <RemoveButton
-                label={depth === 0 ? ui.copy.entryNoun[0] : 'reply'}
-                authorName={comment.author.name}
+                label={noun}
+                authorName={author.name}
                 onRemove={() => ui.removeComment(comment.id)}
               />
             )}
@@ -195,8 +219,8 @@ export function CommentItem({ node, depth, flat = false }: CommentItemProps) {
             <CommentComposer
               variant="inline"
               focusOnMount
-              label={`Reply to ${comment.author.name}`}
-              placeholder={`Reply to ${comment.author.name}…`}
+              label={`Reply to ${nameOf(comment)}`}
+              placeholder={`Reply to ${nameOf(comment)}…`}
               submitLabel="Reply"
               onSubmit={(body) => ui.postReply(comment.id, body)}
               onCancel={cancelReply}
@@ -224,7 +248,11 @@ function RemoveButton({
   const [removing, setRemoving] = useState(false);
   const handleClick = () => {
     if (removing) return;
-    if (!window.confirm(`Remove this ${label} by ${authorName}? Its text will be hidden.`)) return;
+    if (
+      !window.confirm(`Remove this ${label} by ${authorName}? Its text and author will be hidden.`)
+    ) {
+      return;
+    }
     setRemoving(true);
     onRemove().then(
       () => {
@@ -284,10 +312,7 @@ function ReplyList({ parent, depth, id, hidden }: ReplyListProps) {
 
   return (
     <div id={id} hidden={hidden}>
-      <ul
-        aria-label={`Replies to ${parent.comment.author.name}`}
-        className="mt-3 flex flex-col gap-5"
-      >
+      <ul aria-label={`Replies to ${nameOf(parent.comment)}`} className="mt-3 flex flex-col gap-5">
         {visible.map((child) =>
           atCap ? (
             <CappedReply key={child.comment.id} node={child} depth={depth} />
@@ -330,7 +355,7 @@ function CappedReply({ node, depth }: { node: CommentNode; depth: number }) {
       <CommentItem node={node} depth={depth} />
       {visibleTail.length > 0 && (
         <ul
-          aria-label={`Further replies under ${node.comment.author.name}`}
+          aria-label={`Further replies under ${nameOf(node.comment)}`}
           className="mt-5 flex flex-col gap-5"
         >
           {visibleTail.map((n) => (

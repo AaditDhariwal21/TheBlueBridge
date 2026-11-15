@@ -5,7 +5,9 @@ import { CategoryDot } from '../../../components/ui/CategoryDot';
 import { Skeleton } from '../../../components/ui/Skeleton';
 import { cn } from '../../../lib/cn';
 import { useCategories } from '../../categories/useCategories';
-import { MAX_CATEGORIES } from '../validation';
+import { PROFILE_LIMITS } from '../../../../../shared/limits';
+
+const MAX_CATEGORIES = PROFILE_LIMITS.ambassadorCategoriesMax;
 
 interface CategoryPickerProps {
   value: string[];
@@ -15,7 +17,7 @@ interface CategoryPickerProps {
 
 /**
  * An ambassador's categories: checkbox chips with each category's colour dot,
- * at most two. Once two are chosen the rest are disabled, and a polite live
+ * one to three. Once three are chosen the rest are disabled, and a polite live
  * region says so.
  */
 export function CategoryPicker({ value, onChange, error }: CategoryPickerProps) {
@@ -33,9 +35,9 @@ export function CategoryPicker({ value, onChange, error }: CategoryPickerProps) 
       aria-describedby={cn(hintId, error && errorId)}
       aria-busy={load.status === 'loading' || undefined}
     >
-      <legend className="text-sm text-text-muted">Your categories</legend>
+      <legend className="text-sm text-text">Which categories would you like to help with?</legend>
       <p id={hintId} aria-live="polite" className="mt-1 text-xs text-text-subtle">
-        Choose one or two. {value.length} of {MAX_CATEGORIES} chosen
+        Choose one to three. {value.length} of {MAX_CATEGORIES} chosen
         {full && '; unselect one to choose another'}.
       </p>
 
