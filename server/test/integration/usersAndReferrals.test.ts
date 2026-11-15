@@ -3,13 +3,12 @@ import { after, before, describe, it } from 'node:test';
 
 import type { Category } from '../../src/features/categories/categories.service.ts';
 import type { ReferralsDto } from '../../src/features/referrals/referrals.service.ts';
-import type { ProfileCardDto } from '../../src/features/members/members.service.ts';
 import { createTestDatabase, skipWithoutDatabase, type TestDatabase } from '../support/database.ts';
 import { insertUser, type TestUser } from '../support/fixtures.ts';
 import { startTestApp, type TestApp } from '../support/testApp.ts';
 import { createTokenKit } from '../support/tokens.ts';
 
-describe('GET /categories, /users/:id and /me/referrals', { skip: skipWithoutDatabase }, () => {
+describe('GET /categories and /me/referrals', { skip: skipWithoutDatabase }, () => {
   let t: TestDatabase;
   let app: TestApp;
   let tokens: Awaited<ReturnType<typeof createTokenKit>>;
@@ -52,31 +51,6 @@ describe('GET /categories, /users/:id and /me/referrals', { skip: skipWithoutDat
         ['Tech', 'blue'],
       ],
     );
-  });
-
-  it('shows the public subset of an approved user, and nothing else', async () => {
-    const res = await app.get<{ user: ProfileCardDto }>(`/users/${ambassador.id}`);
-    assert.equal(res.status, 200);
-    assert.deepEqual(Object.keys(res.body.user).sort(), [
-      'avatarUrl',
-      'categories',
-      'id',
-      'name',
-      'occupation',
-      'role',
-    ]);
-    assert.deepEqual(
-      res.body.user.categories.map((a) => a.name),
-      ['Legal'],
-    );
-  });
-
-  it('answers 404 for unapproved, unknown and malformed ids alike', async () => {
-    for (const id of [pending.id, crypto.randomUUID(), 'not-a-uuid']) {
-      const res = await app.get(`/users/${id}`);
-      assert.equal(res.status, 404);
-      assert.equal(res.body.error.code, 'NOT_FOUND');
-    }
   });
 
   it("lists a member's own referrals with counts by status and role", async () => {

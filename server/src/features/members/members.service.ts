@@ -165,17 +165,6 @@ export async function getMemberProfile(db: Db, id: string): Promise<PublicProfil
   return toPublicProfile(row, details);
 }
 
-/** GET /users/:id, open to anyone: never email, phone or status. */
-export type ProfileCardDto = Pick<
-  PublicProfileDto,
-  'id' | 'name' | 'occupation' | 'role' | 'avatarUrl' | 'categories'
->;
-
-export async function getProfileCard(db: Db, id: string): Promise<ProfileCardDto> {
-  const { name, occupation, role, avatarUrl, categories } = await getMemberProfile(db, id);
-  return { id, name, occupation, role, avatarUrl, categories };
-}
-
 /* ------------------------------------------------------------------- admin */
 
 export interface AdminMemberSummaryDto extends MemberSummaryDto {

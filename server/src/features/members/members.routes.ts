@@ -7,15 +7,13 @@ import { searchRateLimit } from '../../middleware/rateLimits.ts';
 import {
   getCommunitySizeHandler,
   getMemberProfileHandler,
-  getProfileCardHandler,
   listDirectoryHandler,
 } from './members.handlers.ts';
 
 /**
  * Profiles as other people see them. The directory carries contact details (phone, email),
- * so it is for approved members only, never for anonymous visitors or scrapers.
- * GET /users/:id is the small card anyone may see (no contact details), and
- * GET /members/count only the community's size. (`/members/count` is matched before
+ * so it is for approved members only, never for anonymous visitors or scrapers. Visitors get
+ * only GET /members/count, the community's size; no profile of anyone. (`/members/count` is matched before
  * `/members/:userId`, which would 404 for it anyway: "count" is not a uuid.)
  */
 export function membersRoutes(deps: {
@@ -29,6 +27,5 @@ export function membersRoutes(deps: {
   router.get('/members', ...members, directorySearch, listDirectoryHandler(deps));
   router.get('/members/count', getCommunitySizeHandler(deps));
   router.get('/members/:userId', ...members, getMemberProfileHandler(deps));
-  router.get('/users/:userId', getProfileCardHandler(deps));
   return router;
 }

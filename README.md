@@ -119,7 +119,6 @@ Everything is under `/api`. Reads are public; writes need an approved account (B
 | `POST /me/reapply`                         | rejected accounts only: a new application (same body as sign-up's application); back to pending. Rate-limited per account                                      |
 | `GET /me/referrals?cursor&limit`           | approved: the people who joined with **your own** code, with totals                                                                                            |
 | `GET /me/blogs`, `GET /me/comments`        | signed in: your own blogs and comments, newest first                                                                                                           |
-| `GET /users/:id`                           | anyone (approved users only; name, occupation, role, avatar, categories)                                                                                       |
 | `GET /members?q&roles&cursor&limit`        | approved: the directory, admins → ambassadors → members, each by name. `q` = name or occupation (2–100 chars), `roles` = comma list; returns `counts` per role |
 | `GET /members/:id`                         | approved: an approved member's full profile, phone and email included                                                                                          |
 | `GET /members/:id/blogs`, `/comments`      | approved: a member's blogs and comments for their profile, newest first, paged                                                                                 |

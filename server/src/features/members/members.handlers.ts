@@ -11,7 +11,6 @@ import {
   getMemberProfile,
   getPendingCounts,
   getCommunitySize,
-  getProfileCard,
   listDirectory,
   listMemberReferrals,
   listMembersForAdmin,
@@ -41,12 +40,6 @@ export function getCommunitySizeHandler({ db }: Deps): RequestHandler {
 export function getMemberProfileHandler({ db }: Deps): ByUser {
   return async (req, res) => {
     res.json({ member: await getMemberProfile(db, req.params.userId) });
-  };
-}
-
-export function getProfileCardHandler({ db }: Deps): ByUser {
-  return async (req, res) => {
-    res.json({ user: await getProfileCard(db, req.params.userId) });
   };
 }
 

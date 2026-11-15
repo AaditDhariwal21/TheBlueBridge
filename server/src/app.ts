@@ -77,7 +77,7 @@ function apiRouter(deps: AppDeps): Router {
   router.use(profileOptionsRoutes(deps)); //         GET  /profile-options
   router.use('/auth', authRoutes(deps)); //          POST /auth/signup, /auth/referral-codes/validate
   router.use(usersRoutes(withAuth)); //              GET  /me, POST /me/reapply
-  router.use(membersRoutes(withAuth)); //            GET  /members[/:id], /users/:id
+  router.use(membersRoutes(withAuth)); //            GET  /members[/:id], /members/count
   router.use(referralsRoutes(withAuth)); //          GET  /me/referrals
   router.use(blogsRoutes(withAuth)); //              /blogs[/:id], /query-blogs[/:id], /me/blogs
   router.use(commentsRoutes(withAuth)); //           /blogs/:id/comments[/:commentId], /me/comments
