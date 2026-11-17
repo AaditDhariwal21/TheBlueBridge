@@ -321,7 +321,7 @@ function Toolbar({ editor }: { editor: Editor }) {
                 {...(tool.isActive && { 'aria-pressed': active })}
                 aria-disabled={disabled || undefined}
                 className={cn(
-                  'grid size-9 place-items-center text-sm transition-colors',
+                  'grid size-11 place-items-center text-sm transition-colors sm:size-9',
                   active ? 'bg-primary text-on-primary' : 'text-text hover:bg-bg',
                   disabled && 'opacity-40 hover:bg-transparent',
                 )}

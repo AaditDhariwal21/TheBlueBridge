@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 
 import { Button } from '../../../components/ui/Button';
+import { CharacterCount } from '../../../components/ui/CharacterCount';
 import { Field } from '../../../components/ui/Field';
 import { Input } from '../../../components/ui/Input';
 import { Select } from '../../../components/ui/Select';
@@ -126,15 +127,20 @@ function AccountStep({ draft, errors, update }: StepFieldsProps) {
         hint={`At least ${PASSWORD_LIMITS.min} characters. A short phrase is easy to remember.`}
       >
         {(control) => (
-          <PasswordInput
-            {...control}
-            name="password"
-            autoComplete="new-password"
-            value={draft.password}
-            onChange={(e) => {
-              update('password', e.target.value);
-            }}
-          />
+          <div>
+            <PasswordInput
+              {...control}
+              name="password"
+              autoComplete="new-password"
+              value={draft.password}
+              onChange={(e) => {
+                update('password', e.target.value);
+              }}
+            />
+            <div className="mt-1 flex min-h-4 justify-end">
+              <CharacterCount count={draft.password.length} min={PASSWORD_LIMITS.min} />
+            </div>
+          </div>
         )}
       </Field>
     </>

@@ -2,17 +2,20 @@ import { CategoryDot } from '../../../../components/ui/CategoryDot';
 import { cn } from '../../../../lib/cn';
 import type { Category } from '../../model/types';
 
-/** Square, hairline chip with the category's colour dot. */
+/**
+ * A soft, square tag: the paper tone with the category's colour dot. Long names truncate
+ * rather than push the row wider than a phone.
+ */
 export function CategoryChip({ category, className }: { category: Category; className?: string }) {
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-1.5 border border-border px-2 py-0.5 text-xs whitespace-nowrap text-text-muted',
+        'inline-flex max-w-full items-center gap-1.5 bg-bg px-2.5 py-1 text-xs font-medium text-text-muted',
         className,
       )}
     >
       <CategoryDot color={category.color} />
-      {category.name}
+      <span className="truncate">{category.name}</span>
     </span>
   );
 }

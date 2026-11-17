@@ -76,8 +76,6 @@ against the project's signing keys and loads the user's role and status from Pos
   defined. The written reference is [`docs/design-tokens.md`](docs/design-tokens.md).
 - `client/src/app/`: router, route table with per-page meta, head management, site constants.
 - `client/src/pages/`: thin pages that compose `client/src/components/sections/`.
-- `client/src/lib/submitWaitlist.ts`: **stub.** This is the single place to connect the
-  waitlist to the API.
 - `client/src/features/blogs/`: the Blogs section (feed, blog pages, Query Blogs, threaded
   comments, moderation). All data goes through the `BlogsApi` contract, implemented over the
   API by `api/httpBlogsApi.ts`. Controls are shown or hidden with

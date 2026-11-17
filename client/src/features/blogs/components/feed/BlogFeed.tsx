@@ -8,11 +8,18 @@ import { plural } from '../../lib/text';
 import type { Blog } from '../../model/types';
 import { FEED_SEARCH_RULES } from '../../model/validation';
 import { useFeed, useFeedSearch } from '../../state/hooks';
+import { PenIcon, SearchIcon } from '../shared/Icons';
 import { BlogCard, BlogCardSkeleton } from './BlogCard';
 import { FeedSearchBar } from './FeedSearchBar';
 
 /** Start fetching the next page well before the user reaches the end. */
 const PREFETCH_MARGIN = '0px 0px 600px 0px';
+
+/** First render: the first few cards fade up one after another. */
+const STAGGER_MS = 70;
+const STAGGER_COUNT = 6;
+/** Once per visit: coming back to the feed shows it at once, where the reader left it. */
+let feedHasEntered = false;
 
 const normalise = (text: string) => text.replace(/\s+/g, ' ').trim();
 
@@ -49,7 +56,7 @@ export function BlogFeed({ emptyAction }: BlogFeedProps) {
         categoryIds={categoryIds}
         onCategoriesChange={setCategoryIds}
       />
-      <div className="mt-5">
+      <div className="mt-6">
         {q || categoryIds.length > 0 ? (
           <SearchResults q={q} categoryIds={categoryIds} onClear={clear} />
         ) : (
@@ -74,7 +81,11 @@ function LatestBlogs({ emptyAction }: BlogFeedProps) {
       highlightId={feed.justPublishedId}
       onHighlightDone={feed.markHighlightSeen}
       empty={
-        <StateMessage title="No blogs yet" action={emptyAction}>
+        <StateMessage
+          title="No blogs yet"
+          icon={<PenIcon className="size-5" />}
+          action={emptyAction}
+        >
           Be the first to share a story, a lesson or a piece of advice with the community.
         </StateMessage>
       }
@@ -105,13 +116,14 @@ function SearchResults({
         <StateMessage
           role="status"
           title="No blogs match"
+          icon={<SearchIcon className="size-5" />}
           action={
             <Button variant="outline" onClick={onClear}>
               Clear filters
             </Button>
           }
         >
-          Try other words, or fewer categories.
+          Try different words, check the spelling, or choose fewer categories.
         </StateMessage>
       }
     />
@@ -149,6 +161,10 @@ function FeedList({
   onHighlightDone,
 }: FeedListProps) {
   const sentinelRef = useRef<HTMLDivElement>(null);
+  const [stagger] = useState(() => !feedHasEntered);
+  useEffect(() => {
+    if (blogs.length > 0) feedHasEntered = true;
+  }, [blogs.length]);
   const canAutoLoad = hasMore && !loading && !failed;
   const replacing = loading && !hasMore && blogs.length > 0;
 
@@ -181,12 +197,13 @@ function FeedList({
           replacing && 'opacity-60 motion-reduce:opacity-100',
         )}
       >
-        {blogs.map((blog) => (
+        {blogs.map((blog, i) => (
           <li key={blog.id}>
             <BlogCard
               blog={blog}
               highlight={blog.id === highlightId}
               {...(onHighlightDone && { onHighlightDone })}
+              {...(stagger && i < STAGGER_COUNT && { enterDelay: i * STAGGER_MS })}
             />
           </li>
         ))}
@@ -195,7 +212,12 @@ function FeedList({
       {loading && !replacing && (
         <div className={cn('flex flex-col gap-4', blogs.length > 0 && 'mt-4')}>
           <BlogCardSkeleton />
-          {blogs.length === 0 && <BlogCardSkeleton />}
+          {blogs.length === 0 && (
+            <>
+              <BlogCardSkeleton />
+              <BlogCardSkeleton />
+            </>
+          )}
         </div>
       )}
 

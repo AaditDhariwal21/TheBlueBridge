@@ -95,3 +95,10 @@ export const ChevronDownIcon = ({ className }: IconProps) => (
     <path d="m6 9 6 6 6-6" />
   </Icon>
 );
+
+export const SearchIcon = ({ className }: IconProps) => (
+  <Icon className={className}>
+    <circle cx="11" cy="11" r="6.5" />
+    <path d="m20 20-4.5-4.5" />
+  </Icon>
+);

@@ -1,17 +1,20 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 
 import { usePageHead } from '../app/head';
 import { Button } from '../components/ui/Button';
-import { buttonClasses } from '../components/ui/buttonClasses';
+import { ConfirmDialog } from '../components/ui/ConfirmDialog';
+import { DeadEnd } from '../components/ui/DeadEnd';
+import { StateMessage } from '../components/ui/StateMessage';
+import { buttonClasses, dangerTextClasses } from '../components/ui/buttonClasses';
+import { useToast } from '../components/ui/toast';
+import { canModerate } from '../features/auth/permissions';
 import { BlogArticle, BlogArticleSkeleton } from '../features/blogs/components/article/BlogArticle';
+import { ReadingProgress } from '../features/blogs/components/article/ReadingProgress';
 import { CommentsSection } from '../features/blogs/components/comments/CommentsSection';
 import { BLOG_COMMENTS_COPY } from '../features/blogs/components/comments/threadContext';
 import { BackLink } from '../features/blogs/components/shared/BackLink';
 import { BlogsLayout } from '../features/blogs/components/shared/BlogsLayout';
-import { StateMessage } from '../components/ui/StateMessage';
-import { useToast } from '../components/ui/toast';
-import { canModerate } from '../features/auth/permissions';
 import { BLOGS_PATH } from '../features/blogs/lib/paths';
 import type { Blog } from '../features/blogs/model/types';
 import { useBlog, useDeleteBlog } from '../features/blogs/state/hooks';
@@ -22,6 +25,7 @@ const DESCRIPTION_LENGTH = 155;
 export function BlogPage() {
   const { blogId = '' } = useParams();
   const { data: blog, status, retry } = useBlog(blogId);
+  const articleRef = useRef<HTMLElement>(null);
 
   usePageHead(
     blog
@@ -31,8 +35,8 @@ export function BlogPage() {
         }
       : status === 'missing'
         ? {
-            title: 'Blog not found — The Blue Bridge',
-            description: 'This blog could not be found.',
+            title: 'Blog not available — The Blue Bridge',
+            description: 'This blog is no longer available.',
             noindex: true,
           }
         : null,
@@ -40,13 +44,18 @@ export function BlogPage() {
 
   return (
     <BlogsLayout>
-      <BackLink fallback={BLOGS_PATH} label="All blogs" className="lg:mt-4" />
+      <div className="flex flex-wrap items-center justify-between gap-x-4 lg:mt-4">
+        <BackLink fallback={BLOGS_PATH} label="Back to all blogs" />
+        {blog && <RemoveBlog blog={blog} />}
+      </div>
 
-      <div className="mt-4">
+      <div className="mt-6">
         {blog ? (
           <>
-            <BlogArticle blog={blog} actions={<RemoveBlog blog={blog} />} />
-            <div className="mt-12 border-t border-border pt-10">
+            <ReadingProgress target={articleRef} />
+            <BlogArticle ref={articleRef} blog={blog} />
+            {/* The conversation sits on its own surface, clearly apart from the article. */}
+            <div className="-mx-gutter mt-14 border-y border-border bg-surface px-gutter py-10 sm:mx-0 sm:border-x sm:px-8 sm:py-10">
               <CommentsSection
                 subject={{ kind: 'blog', blogId: blog.id }}
                 copy={BLOG_COMMENTS_COPY}
@@ -56,17 +65,17 @@ export function BlogPage() {
             </div>
           </>
         ) : status === 'missing' ? (
-          <StateMessage
+          <DeadEnd
             headingLevel="h1"
-            title="We couldn’t find that blog"
-            action={
+            title="This blog is no longer available"
+            actions={
               <Link to={BLOGS_PATH} className={buttonClasses()}>
-                Browse all blogs
+                Back to the feed
               </Link>
             }
           >
-            It may have been removed, or the link may be incomplete.
-          </StateMessage>
+            <p>It may have been removed by its author or a moderator, or the link is incomplete.</p>
+          </DeadEnd>
         ) : status === 'error' ? (
           <StateMessage
             role="alert"
@@ -94,7 +103,7 @@ function RemoveBlog({ blog }: { blog: Blog }) {
   const deleteBlog = useDeleteBlog();
   const navigate = useNavigate();
   const toast = useToast();
-  const [removing, setRemoving] = useState(false);
+  const [confirming, setConfirming] = useState(false);
 
   if (
     !canModerate(
@@ -104,31 +113,40 @@ function RemoveBlog({ blog }: { blog: Blog }) {
   )
     return null;
 
-  const handleClick = () => {
-    if (removing) return;
-    if (!window.confirm(`Remove “${blog.title}”? It will disappear from the feed.`)) return;
-    setRemoving(true);
-    deleteBlog(blog.id).then(
-      () => {
-        toast.success('The blog was removed.');
-        void navigate(BLOGS_PATH, { replace: true });
-      },
-      () => {
-        setRemoving(false);
-        toast.error('Couldn’t remove the blog. Please try again.');
-      },
-    );
-  };
-
   return (
-    <button
-      type="button"
-      onClick={handleClick}
-      aria-disabled={removing || undefined}
-      className="min-h-11 px-1 text-sm text-text-muted underline-offset-4 transition-colors hover:text-danger hover:underline"
-    >
-      {removing ? 'Removing…' : 'Remove blog'}
-    </button>
+    <>
+      <button
+        type="button"
+        onClick={() => {
+          setConfirming(true);
+        }}
+        aria-haspopup="dialog"
+        className={dangerTextClasses('-mr-2')}
+      >
+        Remove blog
+      </button>
+      <ConfirmDialog
+        open={confirming}
+        title="Remove this blog?"
+        tone="danger"
+        confirmLabel="Remove blog"
+        busyLabel="Removing…"
+        onClose={() => {
+          setConfirming(false);
+        }}
+        onConfirm={async () => {
+          await deleteBlog(blog.id);
+          setConfirming(false);
+          toast.success('The blog was removed.');
+          void navigate(BLOGS_PATH, { replace: true });
+        }}
+      >
+        <p>
+          <strong className="font-medium text-text">{blog.title}</strong> will disappear from the
+          feed, along with its comments. This can’t be undone.
+        </p>
+      </ConfirmDialog>
+    </>
   );
 }
 

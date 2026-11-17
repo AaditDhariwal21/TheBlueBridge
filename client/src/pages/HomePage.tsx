@@ -1,7 +1,7 @@
 import { Hero } from '../components/sections/Hero';
 import { Mission } from '../components/sections/Mission';
 import { Pillars } from '../components/sections/Pillars';
-import { WaitlistCta } from '../components/sections/WaitlistCta';
+import { JoinCta } from '../components/sections/JoinCta';
 
 export function HomePage() {
   return (
@@ -9,7 +9,7 @@ export function HomePage() {
       <Hero />
       <Mission />
       <Pillars />
-      <WaitlistCta />
+      <JoinCta />
     </>
   );
 }

@@ -212,7 +212,7 @@ function ToastItem({ toast, onDismiss }: { toast: Entry; onDismiss: (id: string)
               toast.action?.onClick();
               onDismiss(id);
             }}
-            className="mt-2 min-h-8 text-sm font-medium text-accent underline decoration-accent-soft underline-offset-4 hover:decoration-accent"
+            className="mt-1 min-h-11 text-sm font-medium text-accent underline decoration-accent-soft underline-offset-4 hover:decoration-accent sm:min-h-8"
           >
             {toast.action.label}
           </button>
@@ -224,7 +224,8 @@ function ToastItem({ toast, onDismiss }: { toast: Entry; onDismiss: (id: string)
           onDismiss(id);
         }}
         aria-label="Dismiss notification"
-        className="-my-1 grid size-9 shrink-0 place-items-center text-text-muted transition-colors hover:text-text"
+        title="Dismiss"
+        className="-my-2 grid size-11 shrink-0 place-items-center text-text-muted transition-colors hover:bg-bg hover:text-text sm:-my-1 sm:size-9"
       >
         <svg aria-hidden="true" viewBox="0 0 24 24" className="size-4" fill="none">
           <path d="M6 6l12 12M18 6 6 18" stroke="currentColor" strokeWidth="1.5" />

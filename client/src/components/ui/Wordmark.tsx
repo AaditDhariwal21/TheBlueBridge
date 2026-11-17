@@ -14,7 +14,10 @@ export function Wordmark({ className, onClick }: WordmarkProps) {
     <Link
       to="/"
       onClick={onClick}
-      className={cn('font-display text-wordmark text-text', className)}
+      className={cn(
+        'inline-flex min-h-11 items-center font-display text-wordmark text-text',
+        className,
+      )}
     >
       {SITE_NAME}
     </Link>

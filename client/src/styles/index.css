@@ -47,6 +47,15 @@
     outline-offset: 3px;
   }
 
+  /* Tailwind's preflight gives buttons the default arrow; anything clickable shows a hand. */
+  button:not(:disabled, [aria-disabled='true']),
+  [role='tab'],
+  [role='option'],
+  select:not(:disabled),
+  summary {
+    cursor: pointer;
+  }
+
   /* Programmatic focus targets (main, headings) should not show a ring. */
   [tabindex='-1']:focus {
     outline: none;
@@ -88,6 +97,17 @@
   }
 }
 
+/* Justified prose that stays even on narrow screens: spacing goes between words, long words
+   hyphenate (needs a `lang`; index.html sets lang="en"). Plain wrapping: `pretty` pushes words
+   down to balance the last line, which leaves loose justified lines above it. */
+@utility text-justified {
+  text-wrap: wrap;
+  text-align: justify;
+  text-justify: inter-word;
+  hyphens: auto;
+  -webkit-hyphens: auto;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   ::before,
@@ -103,24 +123,29 @@
 @layer components {
   .rich-text {
     color: var(--color-text);
-    line-height: 1.7;
+    line-height: 1.75;
     overflow-wrap: break-word;
   }
   .rich-text > * + * {
-    margin-top: 1em;
+    margin-top: 1.15em;
   }
   .rich-text h2 {
-    margin-top: 1.6em;
+    margin-top: 1.8em;
     font-family: var(--font-display);
-    font-size: var(--text-h3);
-    line-height: var(--text-h3--line-height);
+    font-size: var(--text-lead);
+    line-height: var(--text-lead--line-height);
+    letter-spacing: var(--tracking-tight);
   }
   .rich-text h3 {
-    margin-top: 1.4em;
+    margin-top: 1.6em;
     font-family: var(--font-sans);
-    font-size: var(--text-lg);
+    font-size: var(--text-h3);
     font-weight: 600;
-    line-height: var(--text-lg--line-height);
+    line-height: var(--text-h3--line-height);
+  }
+  .rich-text h2 + *,
+  .rich-text h3 + * {
+    margin-top: 0.6em;
   }
   .rich-text > :first-child {
     margin-top: 0;
@@ -135,18 +160,24 @@
   .rich-text ol {
     list-style: decimal;
   }
+  .rich-text li {
+    padding-left: 0.25em;
+  }
   .rich-text li + li,
   .rich-text li > * + * {
-    margin-top: 0.35em;
+    margin-top: 0.5em;
   }
   .rich-text li::marker {
-    color: var(--color-text-muted);
+    color: var(--color-accent);
   }
   .rich-text blockquote {
-    border-left: 2px solid var(--color-accent-soft);
-    padding-left: 1em;
-    color: var(--color-text-muted);
+    border-left: 2px solid var(--color-accent-2-soft);
+    padding: 0.25em 0 0.25em 1.25em;
+    color: var(--color-text);
+    font-family: var(--font-display);
+    font-size: 1.15em;
     font-style: italic;
+    line-height: 1.6;
   }
   .rich-text strong {
     font-weight: 600;
@@ -154,7 +185,12 @@
   .rich-text a {
     color: var(--color-accent);
     text-decoration: underline;
+    text-decoration-color: var(--color-accent-soft);
     text-underline-offset: 3px;
+    transition: text-decoration-color var(--duration-fast) var(--ease-standard);
+  }
+  .rich-text a:hover {
+    text-decoration-color: currentColor;
   }
 
   /* The editor's empty-state hint (TipTap Placeholder). */

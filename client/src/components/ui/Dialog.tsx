@@ -1,6 +1,7 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 
 import { cn } from '../../lib/cn';
+import { useBackdropDismiss } from '../../lib/useBackdropDismiss';
 
 const VARIANTS = {
   /** A centred panel. */
@@ -61,28 +62,7 @@ export function Dialog({
     }
   }, [open]);
 
-  // A backdrop click lands on the <dialog> itself (its content fills the box). Both the press
-  // and the release must be there, so selecting text and releasing outside doesn't close it.
-  useEffect(() => {
-    const dialog = ref.current;
-    if (!dialog) return;
-    let pressedOnBackdrop = false;
-    const onPointerDown = (event: PointerEvent) => {
-      pressedOnBackdrop = event.target === dialog;
-    };
-    const onClick = (event: MouseEvent) => {
-      if (pressedOnBackdrop && event.target === dialog && latest.current.dismissible) {
-        latest.current.onClose();
-      }
-      pressedOnBackdrop = false;
-    };
-    dialog.addEventListener('pointerdown', onPointerDown);
-    dialog.addEventListener('click', onClick);
-    return () => {
-      dialog.removeEventListener('pointerdown', onPointerDown);
-      dialog.removeEventListener('click', onClick);
-    };
-  }, []);
+  useBackdropDismiss(ref, onClose, dismissible);
 
   return (
     <dialog

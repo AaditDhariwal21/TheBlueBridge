@@ -6,7 +6,7 @@ import { cn } from '../../../../lib/cn';
 import { COMMENT_MAX, normaliseText } from '../../model/validation';
 import { useViewerAuthor } from '../../state/viewer';
 import { Avatar } from '../../../../components/ui/Avatar';
-import { CharacterCount } from '../shared/CharacterCount';
+import { CharacterCount } from '../../../../components/ui/CharacterCount';
 
 /** The character count appears once the text reaches 80% of the limit. */
 const COUNT_REVEAL = 0.8;
@@ -151,7 +151,12 @@ export function CommentComposer({
                 Cancel
               </Button>
             )}
-            <Button type="submit" aria-disabled={posting || isEmpty || undefined} className="px-5">
+            <Button
+              type="submit"
+              aria-disabled={posting || isEmpty || undefined}
+              title={isEmpty ? 'Write something first' : undefined}
+              className="px-5"
+            >
               {posting ? 'Posting…' : submitLabel}
             </Button>
           </div>

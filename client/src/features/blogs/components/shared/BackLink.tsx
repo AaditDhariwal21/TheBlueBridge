@@ -34,11 +34,12 @@ export function BackLink({ fallback, label, className }: BackLinkProps) {
       to={fallback}
       onClick={handleClick}
       className={cn(
-        '-ml-2 inline-flex min-h-11 items-center gap-2 px-2 text-sm text-text-muted transition-colors hover:text-text',
+        'group -ml-2 inline-flex min-h-11 items-center gap-2 px-2 text-sm font-medium text-text',
+        'decoration-accent-soft underline-offset-4 transition-colors hover:underline active:text-text-muted',
         className,
       )}
     >
-      <ArrowLeftIcon />
+      <ArrowLeftIcon className="text-accent transition-transform group-hover:-translate-x-0.5" />
       {label}
     </Link>
   );

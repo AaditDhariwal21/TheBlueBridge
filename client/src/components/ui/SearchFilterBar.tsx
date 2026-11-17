@@ -1,5 +1,6 @@
 import { useId } from 'react';
 
+import { cn } from '../../lib/cn';
 import { CategoryDot } from './CategoryDot';
 import { FilterMenu, type FilterMenuProps } from './FilterMenu';
 
@@ -37,7 +38,16 @@ export function SearchFilterBar({
 
   return (
     <div>
-      <div role="search" aria-label={label} className="flex items-stretch gap-2">
+      {/* One bar: a hairline box with the site's strong underline, the filter flush inside. */}
+      <div
+        role="search"
+        aria-label={label}
+        className={cn(
+          'flex min-h-12 items-stretch border border-border border-b-border-strong bg-surface transition-colors',
+          'hover:border-b-text has-[input:focus-visible]:border-b-text',
+          'has-[input:focus-visible]:outline-2 has-[input:focus-visible]:outline-offset-2 has-[input:focus-visible]:outline-focus',
+        )}
+      >
         <div className="relative min-w-0 flex-1">
           <label htmlFor={inputId} className="sr-only">
             {placeholder}
@@ -49,7 +59,7 @@ export function SearchFilterBar({
             stroke="currentColor"
             strokeWidth="1.5"
             strokeLinecap="round"
-            className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-text-muted"
+            className="pointer-events-none absolute top-1/2 left-4 size-5 -translate-y-1/2 text-text-muted"
           >
             <circle cx="11" cy="11" r="6.5" />
             <path d="m20 20-4.5-4.5" />
@@ -66,7 +76,7 @@ export function SearchFilterBar({
             maxLength={maxLength}
             autoComplete="off"
             enterKeyHint="search"
-            className="min-h-11 w-full border border-border-strong bg-surface py-2 pr-3 pl-9 text-base text-text transition-colors placeholder:text-text-subtle hover:border-text focus:border-text"
+            className="size-full bg-transparent py-2 pr-3 pl-12 text-base text-text outline-none placeholder:text-text-subtle"
           />
           <span id={hintId} className="sr-only">
             {hint}
@@ -84,10 +94,10 @@ export function SearchFilterBar({
                 onClick={() => {
                   filter.onChange(filter.value.filter((id) => id !== option.id));
                 }}
-                className="inline-flex min-h-8 items-center gap-1.5 border border-border bg-surface px-2 text-xs text-text-muted transition-colors hover:border-border-strong hover:text-text"
+                className="inline-flex min-h-11 max-w-full items-center gap-1.5 border border-border bg-surface px-2.5 text-xs text-text-muted transition-colors hover:border-border-strong hover:text-text active:bg-bg sm:min-h-8"
               >
                 {option.color && <CategoryDot color={option.color} />}
-                {option.label}
+                <span className="truncate">{option.label}</span>
                 <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" className="size-3.5">
                   <path d="M6 6l12 12M18 6 6 18" stroke="currentColor" strokeWidth="1.5" />
                 </svg>

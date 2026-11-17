@@ -66,11 +66,16 @@ export function Pillars() {
         <h2 id="pillars-title" className="sr-only">
           Our pillars
         </h2>
-        {/* gap-px over a border-coloured grid draws hairlines between cells at every breakpoint. */}
-        <ul className="grid gap-px border border-border bg-border sm:grid-cols-2 lg:grid-cols-4">
+        {/* gap-px over a border-coloured grid draws hairlines between cells at every breakpoint.
+            Two by two from `sm` up: four across would be too narrow for justified text. */}
+        {/* Full-bleed on phones, so the justified lines get the whole width. */}
+        <ul className="-mx-gutter grid gap-px border-y border-border bg-border sm:mx-0 sm:grid-cols-2 sm:border-x">
           {PILLARS.map((pillar, i) => (
             <li key={pillar.title} className="bg-surface">
-              <Reveal delay={i * 90} className="flex h-full flex-col gap-4 p-6 sm:p-8">
+              <Reveal
+                delay={i * 90}
+                className="flex h-full min-h-56 flex-col gap-4 px-gutter py-8 sm:min-h-64 sm:p-8 lg:p-12"
+              >
                 <svg
                   aria-hidden="true"
                   viewBox="0 0 24 24"
@@ -84,7 +89,7 @@ export function Pillars() {
                   {pillar.icon}
                 </svg>
                 <h3 className="mt-2 text-h3">{pillar.title}</h3>
-                <p className="text-text-muted">{pillar.description}</p>
+                <p className="text-justified text-lg text-text-muted">{pillar.description}</p>
               </Reveal>
             </li>
           ))}

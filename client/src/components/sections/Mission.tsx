@@ -5,8 +5,12 @@ import { Reveal } from '../ui/Reveal';
 const PROBLEM = ['Talent exists.', 'Experience exists.', 'Opportunity exists.'] as const;
 const MISSING = 'Connection is missing.';
 
-const MISSION =
-  'To build a trusted community of professional women with Jodhpur roots and unlock the power of what we collectively bring—our talent, knowledge, experience, and connections—to empower each other, create opportunities, and amplify our impact, while opening doors for the women who come next.';
+/** A soft hyphen: invisible unless a line breaks there. */
+const SHY = String.fromCharCode(0xad);
+
+/* Hyphenation dictionaries don't know "Jodhpur", so it carries a soft hyphen; without it the
+   justified line before it gapes on phones. The wording itself is unchanged. */
+const MISSION = `To build a trusted community of professional women with Jodh${SHY}pur roots and unlock the power of what we collectively bring (our talent, knowledge, experience, and connections) to empower each other, create opportunities, and amplify our impact, while opening doors for the women who come next.`;
 
 /** Problem statement (as the heading) followed by the mission paragraph. */
 export function Mission() {
@@ -32,7 +36,7 @@ export function Mission() {
             <span className="size-2 rounded-full bg-accent-2-soft" />
           </div>
           <Reveal className="lg:col-span-8" delay={100}>
-            <p className="max-w-reading text-body-lg text-text-muted">{MISSION}</p>
+            <p className="max-w-reading text-justified text-body-lg text-text-muted">{MISSION}</p>
           </Reveal>
         </div>
       </Container>

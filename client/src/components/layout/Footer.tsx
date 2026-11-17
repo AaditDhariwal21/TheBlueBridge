@@ -15,14 +15,14 @@ export function Footer() {
           </div>
 
           <nav aria-label="Footer">
-            <ul className="flex flex-wrap gap-x-8 gap-y-3 text-sm">
+            <ul className="flex flex-wrap gap-x-8 gap-y-1 text-sm">
               {NAV_LINKS.map((link) => (
                 <li key={link.to}>
-                  <NavItem {...link} />
+                  <NavItem {...link} className="inline-flex min-h-11 items-center" />
                 </li>
               ))}
               <li>
-                <AccountLink />
+                <AccountLink className="inline-flex min-h-11 items-center" />
               </li>
             </ul>
           </nav>

@@ -2,19 +2,23 @@ import { useState } from 'react';
 
 import { cn } from '../../lib/cn';
 
-/** Brand-only colourways, each with AA contrast for the initials. */
+/**
+ * Soft brand tints for the initials fallback: the palette's blue and pink at two strengths, and
+ * the warm hairline. Navy initials on each are 7:1 or better.
+ */
 const TONES = [
-  'bg-primary text-on-primary',
-  'bg-accent-soft text-primary',
-  'bg-accent-2 text-on-primary',
-  'bg-accent text-on-primary',
-  'bg-accent-2-soft text-primary',
+  'bg-accent-soft/35 text-primary',
+  'bg-accent-2-soft/35 text-primary',
+  'bg-accent-soft/70 text-primary',
+  'bg-accent-2-soft/70 text-primary',
+  'bg-border text-primary',
 ] as const;
 
 const SIZES = {
   sm: 'size-7 text-xs',
   md: 'size-9 text-xs',
   lg: 'size-11 text-sm',
+  xl: 'size-14 text-base',
 } as const;
 
 export type AvatarSize = keyof typeof SIZES;

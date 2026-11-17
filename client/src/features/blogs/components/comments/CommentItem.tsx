@@ -2,6 +2,8 @@ import { useRef, useState } from 'react';
 import { Link } from 'react-router';
 
 import { Avatar } from '../../../../components/ui/Avatar';
+import { ConfirmDialog } from '../../../../components/ui/ConfirmDialog';
+import { dangerTextClasses } from '../../../../components/ui/buttonClasses';
 import { useToast } from '../../../../components/ui/toast';
 import { cn } from '../../../../lib/cn';
 import { flattenReplies, type CommentNode } from '../../lib/commentTree';
@@ -142,7 +144,7 @@ export function CommentItem({ node, depth, flat = false }: CommentItemProps) {
                     {depth > 0 ? (
                       <a
                         href={`#${commentDomId(parent.comment.id)}`}
-                        className="text-accent underline-offset-2 hover:underline"
+                        className="text-accent underline decoration-accent-soft underline-offset-2 hover:decoration-accent"
                       >
                         {nameOf(parent.comment)}
                       </a>
@@ -165,7 +167,7 @@ export function CommentItem({ node, depth, flat = false }: CommentItemProps) {
               This {noun} was deleted.
             </p>
           ) : (
-            <p className="mt-2 text-base wrap-break-word whitespace-pre-line text-text">
+            <p className="mt-2 text-base leading-relaxed wrap-break-word whitespace-pre-line text-text">
               {comment.body}
             </p>
           )}
@@ -181,7 +183,7 @@ export function CommentItem({ node, depth, flat = false }: CommentItemProps) {
                 }}
                 aria-expanded={isReplying}
                 className={cn(
-                  'inline-flex min-h-11 items-center gap-1.5 px-2 text-sm text-text-muted transition-colors hover:text-text',
+                  'inline-flex min-h-11 items-center gap-1.5 px-2 text-sm text-text-muted transition-colors hover:text-text active:text-text',
                   isReplying && 'text-text',
                 )}
               >
@@ -207,7 +209,7 @@ export function CommentItem({ node, depth, flat = false }: CommentItemProps) {
                 aria-controls={repliesId}
                 className="inline-flex min-h-11 items-center"
               >
-                <span className="inline-flex items-center gap-1 border border-border bg-surface px-2.5 py-1 text-xs font-medium text-text transition-colors hover:border-border-strong">
+                <span className="inline-flex items-center gap-1 border border-border bg-bg px-2.5 py-1 text-xs font-medium text-text transition-colors hover:border-border-strong">
                   <ChevronDownIcon className="size-3.5" />
                   {replyCount}
                 </span>
@@ -234,7 +236,7 @@ export function CommentItem({ node, depth, flat = false }: CommentItemProps) {
   );
 }
 
-/** Moderators only. Asks first; a failure is reported in a toast. */
+/** Moderators only. Asks first in a dialog; a failure stays in the dialog so it can be retried. */
 function RemoveButton({
   label,
   authorName,
@@ -245,38 +247,44 @@ function RemoveButton({
   onRemove: () => Promise<void>;
 }) {
   const toast = useToast();
-  const [removing, setRemoving] = useState(false);
-  const handleClick = () => {
-    if (removing) return;
-    if (
-      !window.confirm(`Remove this ${label} by ${authorName}? Its text and author will be hidden.`)
-    ) {
-      return;
-    }
-    setRemoving(true);
-    onRemove().then(
-      () => {
-        toast.success(`The ${label} was removed.`);
-      },
-      () => {
-        setRemoving(false);
-        toast.error(`Couldn’t remove the ${label}. Please try again.`);
-      },
-    );
-  };
+  const [confirming, setConfirming] = useState(false);
   return (
-    <button
-      type="button"
-      onClick={handleClick}
-      aria-disabled={removing || undefined}
-      className="inline-flex min-h-11 items-center px-2 text-sm text-text-muted transition-colors hover:text-danger"
-    >
-      {removing ? 'Removing…' : 'Remove'}
-      <span className="sr-only">
-        {' '}
-        {label} by {authorName}
-      </span>
-    </button>
+    <>
+      <button
+        type="button"
+        onClick={() => {
+          setConfirming(true);
+        }}
+        aria-haspopup="dialog"
+        className={dangerTextClasses()}
+      >
+        Remove
+        <span className="sr-only">
+          {' '}
+          {label} by {authorName}
+        </span>
+      </button>
+      <ConfirmDialog
+        open={confirming}
+        title={`Remove this ${label}?`}
+        tone="danger"
+        confirmLabel="Remove"
+        busyLabel="Removing…"
+        onClose={() => {
+          setConfirming(false);
+        }}
+        onConfirm={async () => {
+          await onRemove();
+          setConfirming(false);
+          toast.success(`The ${label} was removed.`);
+        }}
+      >
+        <p>
+          The {label} by <strong className="font-medium text-text">{authorName}</strong> will be
+          hidden. Replies under it stay, shown under “This {label} was deleted.”
+        </p>
+      </ConfirmDialog>
+    </>
   );
 }
 
@@ -329,7 +337,7 @@ function ReplyList({ parent, depth, id, hidden }: ReplyListProps) {
           onClick={() => {
             ui.expand(parent.comment.id);
           }}
-          className="mt-1 inline-flex min-h-11 items-center gap-1.5 text-sm font-medium text-accent hover:underline"
+          className="mt-1 inline-flex min-h-11 items-center gap-1.5 text-sm font-medium text-accent underline-offset-4 hover:underline"
         >
           <ChevronDownIcon />
           View {plural(hiddenCount, 'more reply', 'more replies')}

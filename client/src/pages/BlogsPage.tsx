@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import { NavigationType, useNavigationType, useSearchParams } from 'react-router';
+import { useSearchParams } from 'react-router';
 
 import { useToast } from '../components/ui/toast';
 import { canWriteBlog } from '../features/auth/permissions';
 import { BlogComposer } from '../features/blogs/components/composer/BlogComposer';
 import {
+  ComposeBar,
   WriteBlogButton,
   WriteBlogFab,
 } from '../features/blogs/components/composer/WriteBlogButtons';
@@ -26,8 +27,8 @@ const TABS = [
 const TAB_PREFIX = 'blogs';
 
 /**
- * Scroll position per tab, kept for the session. Saved when the user clicks
- * through to a blog or topic, restored on browser-back, and swapped on tab change.
+ * Scroll position per mobile tab, kept for the session and swapped on tab change.
+ * (Back/forward positions are restored for every page by RootLayout.)
  */
 const scrollByTab = new Map<BlogsTab, number>();
 
@@ -38,24 +39,7 @@ export function BlogsPage() {
   const tab: BlogsTab = params.get('tab') === 'queries' ? 'queries' : 'feed';
   const [composerOpen, setComposerOpen] = useState(false);
   const canWrite = canWriteBlog(useBlogActor());
-  const navigationType = useNavigationType();
   const toast = useToast();
-
-  // Back/forward into the feed: return to where the reader was.
-  const restored = useRef(false);
-  useEffect(() => {
-    if (restored.current) return;
-    restored.current = true;
-    const y = scrollByTab.get(tab);
-    if (navigationType !== NavigationType.Pop || y === undefined) return;
-    // After RootLayout's scroll-to-top for the new route.
-    const frame = requestAnimationFrame(() => {
-      window.scrollTo({ top: y, behavior: 'instant' });
-    });
-    return () => {
-      cancelAnimationFrame(frame);
-    };
-  }, [navigationType, tab]);
 
   const previousTab = useRef(tab);
   useEffect(() => {
@@ -63,6 +47,21 @@ export function BlogsPage() {
     previousTab.current = tab;
     window.scrollTo({ top: scrollByTab.get(tab) ?? 0, behavior: 'instant' });
   }, [tab]);
+
+  // On phones the floating "Write a blog" appears only once the compose bar is out of view.
+  const composeRef = useRef<HTMLButtonElement>(null);
+  const [composeInView, setComposeInView] = useState(true);
+  useEffect(() => {
+    const bar = composeRef.current;
+    if (!bar || isDesktop) return;
+    const observer = new IntersectionObserver((entries) => {
+      setComposeInView(entries.some((entry) => entry.isIntersecting));
+    });
+    observer.observe(bar);
+    return () => {
+      observer.disconnect();
+    };
+  }, [isDesktop, canWrite, tab]);
 
   const selectTab = (next: BlogsTab) => {
     if (next === tab) return;
@@ -74,85 +73,84 @@ export function BlogsPage() {
     setComposerOpen(true);
   };
 
+  const compose = canWrite ? (
+    <ComposeBar ref={composeRef} onClick={openComposer} composerOpen={composerOpen} />
+  ) : (
+    <JoinPrompt action="write a blog" />
+  );
+
   return (
     <BlogsLayout>
-      {/* Remember the position whenever the reader follows a link out of the page. */}
-      <div
-        onClickCapture={() => {
-          scrollByTab.set(tab, window.scrollY);
-        }}
-      >
-        <header className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4 lg:pt-6">
-          <div className="min-w-0">
-            <p className="text-xs tracking-caps text-text-muted uppercase">From the community</p>
-            <h1 id="page-title" className="mt-2 text-h1 tracking-tight motion-safe:animate-rise">
-              Blogs
-            </h1>
-            <p className="mt-2 max-w-narrow text-text-muted">
-              Stories, lessons and practical advice from the women of Jodhpur.
-            </p>
-          </div>
-          {isDesktop &&
-            (canWrite ? (
-              <WriteBlogButton onClick={openComposer} composerOpen={composerOpen} />
-            ) : (
-              <JoinPrompt action="write a blog" variant="inline" />
-            ))}
-        </header>
+      <header className="lg:pt-6">
+        <p className="text-xs tracking-caps text-text-muted uppercase">From the community</p>
+        <h1 id="page-title" className="mt-2 text-h1 tracking-tight motion-safe:animate-rise">
+          Blogs
+        </h1>
+        <p className="mt-3 max-w-reading text-lg text-text-muted">
+          Stories, lessons and practical advice from the women of Jodhpur. Settle in and read, then
+          share something of your own.
+        </p>
         <div
           aria-hidden="true"
           className="mt-6 h-px w-24 bg-linear-to-r from-accent-soft to-accent-2-soft"
         />
+      </header>
 
-        {isDesktop ? (
-          <div className="mt-8">
+      {isDesktop ? (
+        <div className="mt-8 flex flex-col gap-6">
+          {compose}
+          <BlogFeed
+            emptyAction={
+              canWrite && <WriteBlogButton onClick={openComposer} composerOpen={composerOpen} />
+            }
+          />
+        </div>
+      ) : (
+        <>
+          <div className="sticky top-header z-30 -mx-gutter mt-6 border-b border-border bg-bg px-gutter py-2">
+            <SegmentedTabs
+              tabs={TABS}
+              value={tab}
+              onChange={selectTab}
+              label="Blogs sections"
+              idPrefix={TAB_PREFIX}
+            />
+          </div>
+
+          <div
+            role="tabpanel"
+            id={panelId(TAB_PREFIX, 'feed')}
+            aria-labelledby={tabId(TAB_PREFIX, 'feed')}
+            hidden={tab !== 'feed'}
+            className="flex flex-col gap-5 pt-5 pb-20"
+          >
+            {compose}
             <BlogFeed
               emptyAction={
                 canWrite && <WriteBlogButton onClick={openComposer} composerOpen={composerOpen} />
               }
             />
           </div>
-        ) : (
-          <>
-            <div className="sticky top-header z-30 -mx-gutter mt-5 border-b border-border bg-bg px-gutter py-2">
-              <SegmentedTabs
-                tabs={TABS}
-                value={tab}
-                onChange={selectTab}
-                label="Blogs sections"
-                idPrefix={TAB_PREFIX}
-              />
-            </div>
 
-            <div
-              role="tabpanel"
-              id={panelId(TAB_PREFIX, 'feed')}
-              aria-labelledby={tabId(TAB_PREFIX, 'feed')}
-              hidden={tab !== 'feed'}
-              className="pt-4 pb-20"
-            >
-              <BlogFeed />
-            </div>
+          <div
+            role="tabpanel"
+            id={panelId(TAB_PREFIX, 'queries')}
+            aria-labelledby={tabId(TAB_PREFIX, 'queries')}
+            hidden={tab !== 'queries'}
+            className="pt-5"
+          >
+            <h2 className="text-h3">Ask the ambassadors</h2>
+            <p className="mt-1 mb-5 text-sm text-text-muted">
+              One Query Blog per category. Any member can ask; its ambassadors answer.
+            </p>
+            <QueryBlogList />
+          </div>
 
-            <div
-              role="tabpanel"
-              id={panelId(TAB_PREFIX, 'queries')}
-              aria-labelledby={tabId(TAB_PREFIX, 'queries')}
-              hidden={tab !== 'queries'}
-              className="pt-4"
-            >
-              <p className="mb-4 text-sm text-text-muted">
-                One per category. Any member asks; ambassadors answer.
-              </p>
-              <QueryBlogList headingLevel="h2" />
-            </div>
-
-            {tab === 'feed' && canWrite && (
-              <WriteBlogFab onClick={openComposer} composerOpen={composerOpen} />
-            )}
-          </>
-        )}
-      </div>
+          {tab === 'feed' && canWrite && !composeInView && (
+            <WriteBlogFab onClick={openComposer} composerOpen={composerOpen} />
+          )}
+        </>
+      )}
 
       <BlogComposer
         open={composerOpen}

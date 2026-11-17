@@ -116,7 +116,7 @@ export function AdminQueryBlogs() {
                   </p>
                 </div>
                 <Button
-                  variant="outline"
+                  variant="danger-outline"
                   onClick={() => {
                     setRemoving(queryBlog);
                   }}

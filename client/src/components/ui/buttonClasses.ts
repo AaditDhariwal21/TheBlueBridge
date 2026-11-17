@@ -11,8 +11,12 @@ const VARIANTS = {
     'aria-disabled:hover:bg-transparent aria-disabled:hover:text-primary',
   /** Confirms something destructive (removing content). */
   danger:
-    'border-danger bg-danger text-on-primary hover:bg-transparent hover:text-danger ' +
-    'aria-disabled:hover:bg-danger aria-disabled:hover:text-on-primary',
+    'border-danger bg-danger text-on-primary hover:border-danger-strong hover:bg-danger-strong ' +
+    'focus-visible:outline-danger aria-disabled:hover:border-danger aria-disabled:hover:bg-danger',
+  /** Starts something destructive or negative (opens its confirmation): red, but quieter. */
+  'danger-outline':
+    'border-danger text-danger hover:bg-danger hover:text-on-primary focus-visible:outline-danger ' +
+    'aria-disabled:hover:bg-transparent aria-disabled:hover:text-danger',
 } as const;
 
 const SIZES = {
@@ -33,9 +37,24 @@ export function buttonClasses({
 }: ButtonStyleProps & { className?: string | undefined } = {}): string {
   return cn(
     'inline-flex items-center justify-center gap-2 border text-sm font-medium transition-colors',
-    'aria-disabled:cursor-not-allowed aria-disabled:opacity-70',
+    'active:translate-y-px aria-disabled:cursor-not-allowed aria-disabled:opacity-70 aria-disabled:active:translate-y-0',
     VARIANTS[variant],
     SIZES[size],
+    className,
+  );
+}
+
+/**
+ * A destructive action written as text ("Remove blog", "Remove"): red at rest, a darker red
+ * and an underline on hover or keyboard focus, a red focus ring. Always opens a confirmation.
+ */
+export function dangerTextClasses(className?: string): string {
+  return cn(
+    'inline-flex min-h-11 items-center gap-1.5 px-2 text-sm font-medium text-danger',
+    'decoration-1 underline-offset-4 transition-colors',
+    'hover:text-danger-strong hover:underline active:text-danger-strong',
+    'focus-visible:underline focus-visible:outline-danger',
+    'aria-disabled:cursor-not-allowed aria-disabled:no-underline aria-disabled:opacity-70',
     className,
   );
 }

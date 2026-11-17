@@ -6,6 +6,7 @@ import { Input } from '../../../../components/ui/Input';
 import { Skeleton } from '../../../../components/ui/Skeleton';
 import { ApiError } from '../../../../lib/api';
 import { cn } from '../../../../lib/cn';
+import { useBackdropDismiss } from '../../../../lib/useBackdropDismiss';
 import { useCategories } from '../../../categories/useCategories';
 import { countWords, estimateReadTime, plural } from '../../lib/text';
 import type { RichDoc } from '../../model/richText';
@@ -20,7 +21,7 @@ import { useCreateBlog } from '../../state/hooks';
 import { useViewerAuthor } from '../../state/viewer';
 import { Avatar } from '../../../../components/ui/Avatar';
 import { CategoryChoice } from '../shared/CategoryChoice';
-import { CharacterCount } from '../shared/CharacterCount';
+import { CharacterCount } from '../../../../components/ui/CharacterCount';
 import { CloseIcon } from '../shared/Icons';
 import type { RichTextEditorHandle } from './RichTextEditor';
 
@@ -101,6 +102,11 @@ export function BlogComposer({ open, onClose, onPublished }: BlogComposerProps) 
   const createBlog = useCreateBlog();
 
   const publishing = status === 'publishing';
+  // The draft is kept on close; only an in-flight publish holds the composer open.
+  const close = () => {
+    if (!publishing) onClose();
+  };
+  useBackdropDismiss(dialogRef, close, !publishing);
 
   // Restore this member's saved draft once (during render: no flash of an empty form).
   if (viewerId !== null && loadedFor !== viewerId) {
@@ -192,7 +198,7 @@ export function BlogComposer({ open, onClose, onPublished }: BlogComposerProps) 
       className={cn(
         'm-0 size-full max-h-none max-w-none bg-bg p-0 text-text open:flex open:flex-col',
         'backdrop:bg-primary/60',
-        'sm:max-w-4xl sm:m-auto sm:h-[min(92dvh,64rem)] sm:w-[calc(100%-3rem)] sm:border sm:border-border',
+        'sm:m-auto sm:h-[min(92dvh,64rem)] sm:w-[calc(100%-3rem)] sm:max-w-224 sm:border sm:border-border',
       )}
     >
       <form
@@ -204,20 +210,18 @@ export function BlogComposer({ open, onClose, onPublished }: BlogComposerProps) 
         <header className="flex shrink-0 items-center gap-2 border-b border-border px-2 py-2 sm:px-6 sm:py-4">
           <button
             type="button"
-            onClick={onClose}
+            onClick={close}
             aria-label="Close composer. Your draft is kept."
-            className="grid size-11 place-items-center text-text-muted transition-colors hover:text-text sm:order-last sm:-mr-3"
+            aria-disabled={publishing || undefined}
+            title="Close (your draft is kept)"
+            className="grid size-11 place-items-center text-text-muted transition-colors hover:bg-surface hover:text-text active:bg-border/50 aria-disabled:opacity-50 sm:order-last sm:-mr-3"
           >
             <CloseIcon className="size-5" />
           </button>
           <h2 id={headingId} className="flex-1 text-h3">
             Write a blog
           </h2>
-          <Button
-            type="submit"
-            aria-disabled={publishing || undefined}
-            className="min-h-10 px-4 sm:hidden"
-          >
+          <Button type="submit" aria-disabled={publishing || undefined} className="px-4 sm:hidden">
             {publishing ? 'Publishing…' : 'Publish'}
           </Button>
         </header>
@@ -254,7 +258,11 @@ export function BlogComposer({ open, onClose, onPublished }: BlogComposerProps) 
                     className="font-display text-h3"
                   />
                   <div className="mt-1 flex justify-end">
-                    <CharacterCount count={titleLength} max={BLOG_RULES.titleMax} />
+                    <CharacterCount
+                      count={titleLength}
+                      min={BLOG_RULES.titleMin}
+                      max={BLOG_RULES.titleMax}
+                    />
                   </div>
                 </div>
               )}
@@ -307,7 +315,12 @@ export function BlogComposer({ open, onClose, onPublished }: BlogComposerProps) 
                 </span>
                 <span className="flex items-center gap-3">
                   <span aria-live="polite">{savedAt !== null && 'Draft saved'}</span>
-                  <CharacterCount count={bodyLength} max={BLOG_RULES.bodyMax} revealAt={0.8} />
+                  <CharacterCount
+                    count={bodyLength}
+                    min={BLOG_RULES.bodyMin}
+                    max={BLOG_RULES.bodyMax}
+                    revealAt={0.8}
+                  />
                 </span>
               </div>
               {errors.content && (
@@ -330,7 +343,7 @@ export function BlogComposer({ open, onClose, onPublished }: BlogComposerProps) 
             Your draft is saved in this browser. Ctrl/⌘ + Enter publishes.
           </p>
           <div className="flex gap-3">
-            <Button variant="outline" onClick={onClose}>
+            <Button variant="outline" onClick={close} aria-disabled={publishing || undefined}>
               Close
             </Button>
             <Button type="submit" aria-disabled={publishing || undefined}>

@@ -34,8 +34,9 @@ export function DialogHeader({
         type="button"
         onClick={onClose}
         aria-label="Close"
+        title="Close"
         aria-disabled={closeDisabled || undefined}
-        className="grid size-11 shrink-0 place-items-center text-text-muted transition-colors hover:text-text aria-disabled:opacity-50"
+        className="grid size-11 shrink-0 place-items-center text-text-muted transition-colors hover:bg-surface hover:text-text active:bg-border/50 aria-disabled:opacity-50"
       >
         <svg aria-hidden="true" viewBox="0 0 24 24" className="size-5" fill="none">
           <path d="M6 6l12 12M18 6 6 18" stroke="currentColor" strokeWidth="1.5" />

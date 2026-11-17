@@ -88,6 +88,7 @@ dark mode a single extra scope (`[data-theme="dark"]`).
 | Border (controls)        | `--color-border-strong` | `slate #5b6478`     | `paper @ 55% → #8791a9 (5.2:1)` |
 | Focus ring               | `--color-focus`         | `blue-600 #3563c4`  | `blue-400 #7fa9ef`              |
 | Error text / border      | `--color-danger`        | `#b42318` **[new]** | `#ffb4a8` **[new]**             |
+| Destructive hover        | `--color-danger-strong` | `red-800 #912018`   | `red-200` mixed with paper      |
 | Success                  | `--color-success`       | `#1e6b4a` **[new]** | `#9fe0bf` **[new]**             |
 | Warning                  | `--color-warning`       | `#8a5300` **[new]** | `#ffd58a` **[new]**             |
 
@@ -155,7 +156,12 @@ On a filled (navy) chip the dot gets a paper ring so black stays visible.
 | `--tracking-caps` **[new]** | Inter             | 0.18em                        |                                                  | Small-caps eyebrows (echoes the image's spaced sub-line) |
 
 Reading measure: reference paragraphs cap at `64rem` (≈150 characters, too long).
-**Proposed:** `--measure: 68ch` for prose.
+Blog articles use `--container-article: 38rem` (`max-w-article`), about 65-70 characters at
+`--text-reading` (1.125rem / 1.75 line height).
+
+Justified prose (Home mission and pillars) uses the `text-justified` utility in `index.css`:
+`text-align: justify`, `text-justify: inter-word`, automatic hyphenation (`lang="en"`), plain
+wrapping. Checked at 320, 360, 390, 768 and 1280 px.
 
 ## 4. Spacing, layout, radius, shadow, motion
 

@@ -209,7 +209,7 @@ export function CommentsSection({ subject, copy, authorId, categoryIds }: Commen
   } else if (focusId) {
     body = focusNode ? (
       <div>
-        <div className="flex flex-wrap items-center justify-between gap-x-4 border border-border bg-surface px-4 py-1">
+        <div className="flex flex-wrap items-center justify-between gap-x-4 border border-border bg-bg px-4 py-1">
           <p ref={bannerRef} tabIndex={-1} className="py-2 text-sm text-text-muted">
             Viewing one thread from this conversation
           </p>
@@ -232,7 +232,10 @@ export function CommentsSection({ subject, copy, authorId, categoryIds }: Commen
         headingLevel="h3"
         title="This thread isn’t available"
         action={
-          <Link to={{ search: '' }} className="text-sm font-medium text-accent hover:underline">
+          <Link
+            to={{ search: '' }}
+            className="inline-flex min-h-11 items-center text-sm font-medium text-accent underline decoration-accent-soft underline-offset-4 hover:decoration-accent"
+          >
             See all {many}
           </Link>
         }
@@ -270,9 +273,16 @@ export function CommentsSection({ subject, copy, authorId, categoryIds }: Commen
         aria-busy={loading}
         className="scroll-mt-24"
       >
-        <h2 id="conversation-title" className="flex items-baseline gap-3 text-h3 sm:text-lead">
+        <h2
+          id="conversation-title"
+          className="flex flex-wrap items-center gap-3 text-h3 sm:text-lead"
+        >
           {copy.heading}
-          {!loading && <span className="font-sans text-sm text-text-muted">{total}</span>}
+          {!loading && (
+            <span className="border border-border px-2 py-0.5 font-sans text-sm text-text-muted">
+              {total}
+            </span>
+          )}
         </h2>
 
         {!focusId && (

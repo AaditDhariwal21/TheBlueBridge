@@ -6,6 +6,7 @@ import { Input } from '../../../../components/ui/Input';
 import { Textarea } from '../../../../components/ui/Textarea';
 import { ApiError } from '../../../../lib/api';
 import { cn } from '../../../../lib/cn';
+import { useBackdropDismiss } from '../../../../lib/useBackdropDismiss';
 import type { Category, QueryBlog } from '../../model/types';
 import {
   QUERY_BLOG_RULES,
@@ -15,7 +16,7 @@ import {
 } from '../../model/validation';
 import { useCreateQueryBlog } from '../../state/hooks';
 import { CategoryChoice } from '../shared/CategoryChoice';
-import { CharacterCount } from '../shared/CharacterCount';
+import { CharacterCount } from '../../../../components/ui/CharacterCount';
 import { CloseIcon } from '../shared/Icons';
 
 /** Every Query Blog gets a systematic name: this prefix, then the category's name. */
@@ -60,6 +61,11 @@ export function QueryBlogComposer({
   const [saving, setSaving] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
   const createQueryBlog = useCreateQueryBlog();
+  // The draft stays while the page is open; only a request in flight holds the dialog open.
+  const close = () => {
+    if (!saving) onClose();
+  };
+  useBackdropDismiss(dialogRef, close, !saving);
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -129,7 +135,7 @@ export function QueryBlogComposer({
       className={cn(
         'm-0 size-full max-h-none max-w-none bg-bg p-0 text-text open:flex open:flex-col',
         'backdrop:bg-primary/60',
-        'sm:max-w-xl sm:m-auto sm:h-auto sm:max-h-[min(92dvh,44rem)] sm:w-[calc(100%-3rem)] sm:border sm:border-border',
+        'sm:m-auto sm:h-auto sm:max-h-[min(92dvh,44rem)] sm:w-[calc(100%-3rem)] sm:max-w-144 sm:border sm:border-border',
       )}
     >
       <form
@@ -140,9 +146,11 @@ export function QueryBlogComposer({
         <header className="flex shrink-0 items-center gap-2 border-b border-border px-2 py-2 sm:px-6 sm:py-4">
           <button
             type="button"
-            onClick={onClose}
+            onClick={close}
             aria-label="Close"
-            className="grid size-11 place-items-center text-text-muted transition-colors hover:text-text sm:order-last sm:-mr-3"
+            aria-disabled={saving || undefined}
+            title="Close"
+            className="grid size-11 place-items-center text-text-muted transition-colors hover:bg-surface hover:text-text active:bg-border/50 aria-disabled:opacity-50 sm:order-last sm:-mr-3"
           >
             <CloseIcon className="size-5" />
           </button>
@@ -198,7 +206,11 @@ export function QueryBlogComposer({
                   className="font-display text-h3"
                 />
                 <div className="mt-1 flex justify-end">
-                  <CharacterCount count={draft.title.trim().length} max={r.titleMax} />
+                  <CharacterCount
+                    count={draft.title.trim().length}
+                    min={r.titleMin}
+                    max={r.titleMax}
+                  />
                 </div>
               </div>
             )}
@@ -223,7 +235,11 @@ export function QueryBlogComposer({
                   placeholder="Contracts, workplace rights, property and paperwork, in plain words."
                 />
                 <div className="mt-1 flex justify-end">
-                  <CharacterCount count={draft.description.trim().length} max={r.descriptionMax} />
+                  <CharacterCount
+                    count={draft.description.trim().length}
+                    min={r.descriptionMin}
+                    max={r.descriptionMax}
+                  />
                 </div>
               </div>
             )}
@@ -237,7 +253,7 @@ export function QueryBlogComposer({
         </div>
 
         <footer className="flex shrink-0 justify-end gap-3 border-t border-border px-gutter py-4 sm:px-6">
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="outline" onClick={close} aria-disabled={saving || undefined}>
             Cancel
           </Button>
           <Button type="submit" aria-disabled={saving || undefined}>

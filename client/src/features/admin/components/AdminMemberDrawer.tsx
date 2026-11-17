@@ -134,7 +134,7 @@ function MemberRecord({
               Approve
             </Button>
             <Button
-              variant="outline"
+              variant="danger-outline"
               onClick={() => {
                 setDeciding('reject');
               }}

@@ -3,7 +3,8 @@ import { Link, useNavigate, useParams } from 'react-router';
 
 import { usePageHead } from '../app/head';
 import { Button } from '../components/ui/Button';
-import { buttonClasses } from '../components/ui/buttonClasses';
+import { DeadEnd } from '../components/ui/DeadEnd';
+import { buttonClasses, dangerTextClasses } from '../components/ui/buttonClasses';
 import { CommentsSection } from '../features/blogs/components/comments/CommentsSection';
 import { QUERY_COPY } from '../features/blogs/components/comments/threadContext';
 import { BackLink } from '../features/blogs/components/shared/BackLink';
@@ -35,8 +36,8 @@ export function QueryBlogPage() {
         }
       : status === 'missing'
         ? {
-            title: 'Query Blog not found — The Blue Bridge',
-            description: 'This Query Blog could not be found.',
+            title: 'Query Blog not available — The Blue Bridge',
+            description: 'This Query Blog is no longer available.',
             noindex: true,
           }
         : null,
@@ -44,9 +45,9 @@ export function QueryBlogPage() {
 
   return (
     <BlogsLayout activeQueryBlogId={queryBlogId}>
-      <BackLink fallback={backTo} label="Query Blogs" className="lg:mt-4" />
+      <BackLink fallback={backTo} label="Back to Query Blogs" className="lg:mt-4" />
 
-      <div className="mt-4">
+      <div className="mt-6">
         {topic ? (
           <>
             <header className="border-b border-border pb-8">
@@ -84,17 +85,17 @@ export function QueryBlogPage() {
             </div>
           </>
         ) : status === 'missing' ? (
-          <StateMessage
+          <DeadEnd
             headingLevel="h1"
-            title="We couldn’t find that Query Blog"
-            action={
+            title="This Query Blog is no longer available"
+            actions={
               <Link to={backTo} className={buttonClasses()}>
                 See all Query Blogs
               </Link>
             }
           >
-            It may have been removed, or the link may be incomplete.
-          </StateMessage>
+            <p>It may have been removed by an admin, or the link is incomplete.</p>
+          </DeadEnd>
         ) : status === 'error' ? (
           <StateMessage
             role="alert"
@@ -137,7 +138,7 @@ function RemoveQueryBlog({ queryBlog }: { queryBlog: QueryBlog }) {
           setConfirming(true);
         }}
         aria-haspopup="dialog"
-        className="min-h-11 px-1 text-sm text-text-muted underline-offset-4 transition-colors hover:text-danger hover:underline"
+        className={dangerTextClasses('-mr-2')}
       >
         Remove Query Blog
       </button>

@@ -73,7 +73,7 @@ export function FilterMenu(props: FilterMenuProps) {
   }, [open, isDesktop]);
 
   return (
-    <div ref={wrapperRef} className="relative shrink-0">
+    <div ref={wrapperRef} className="relative flex shrink-0">
       <button
         ref={buttonRef}
         type="button"
@@ -83,18 +83,17 @@ export function FilterMenu(props: FilterMenuProps) {
         aria-expanded={open}
         aria-controls={isDesktop ? panelId : undefined}
         aria-haspopup={isDesktop ? undefined : 'dialog'}
+        // Sits flush inside SearchFilterBar, divided from the search box by a hairline.
         className={cn(
-          'inline-flex min-h-11 items-center gap-2 border px-3 text-sm font-medium transition-colors',
-          count > 0
-            ? 'border-primary bg-primary text-on-primary'
-            : 'border-border-strong bg-surface text-text hover:border-text',
+          'inline-flex min-h-11 items-center gap-2 border-l border-border px-3 text-sm font-medium text-text transition-colors sm:px-4',
+          'hover:bg-bg active:bg-border/50 aria-expanded:bg-bg',
         )}
       >
         <FunnelIcon />
         <span className="sm:hidden">{shortLabel}</span>
         <span className="hidden sm:inline">{label}</span>
         {count > 0 && (
-          <span className="grid min-w-5 place-items-center bg-on-primary px-1 text-xs text-primary">
+          <span className="grid min-w-5 place-items-center bg-primary px-1 text-xs text-on-primary">
             {count}
             <span className="sr-only"> active</span>
           </span>
@@ -174,7 +173,7 @@ function OptionList({
             onClick={() => {
               onChange([]);
             }}
-            className="text-xs text-text-muted underline-offset-4 hover:text-text hover:underline"
+            className="-mr-1 inline-flex min-h-11 items-center px-1 text-xs text-text-muted underline underline-offset-4 hover:text-text sm:min-h-8"
           >
             Clear
           </button>

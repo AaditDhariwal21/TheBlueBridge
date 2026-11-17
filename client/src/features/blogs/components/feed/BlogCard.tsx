@@ -1,19 +1,23 @@
 import { useEffect, useRef } from 'react';
 import { Link } from 'react-router';
 
+import { Skeleton } from '../../../../components/ui/Skeleton';
 import { cn } from '../../../../lib/cn';
+import { scrollIntoViewGently } from '../../../../lib/motion';
 import { blogPath } from '../../lib/paths';
 import { plural } from '../../lib/text';
 import type { Blog } from '../../model/types';
 import { AuthorByline } from '../shared/AuthorByline';
 import { CategoryChip } from '../shared/CategoryChip';
-import { ClockIcon, CommentIcon } from '../shared/Icons';
+import { ArrowRightIcon, ClockIcon, CommentIcon } from '../shared/Icons';
 
 interface BlogCardProps {
   blog: Blog;
   /** Just published this session: animate in, take focus, and scroll into view. */
   highlight?: boolean;
   onHighlightDone?: () => void;
+  /** First render of the feed: fades up after this many ms (staggered by the list). */
+  enterDelay?: number;
 }
 
 /** One line of preview text, whitespace collapsed; CSS clamps it to 2-3 lines. */
@@ -24,7 +28,7 @@ const previewOf = (text: string) => text.replace(/\s+/g, ' ').trim();
  * whole card, so the entire surface is clickable while screen readers hear a
  * concise link name. Focus is drawn around the card, not just the title.
  */
-export function BlogCard({ blog, highlight, onHighlightDone }: BlogCardProps) {
+export function BlogCard({ blog, highlight, onHighlightDone, enterDelay }: BlogCardProps) {
   const linkRef = useRef<HTMLAnchorElement>(null);
 
   useEffect(() => {
@@ -32,7 +36,8 @@ export function BlogCard({ blog, highlight, onHighlightDone }: BlogCardProps) {
     const link = linkRef.current;
     if (!link) return;
     link.focus({ preventScroll: true });
-    link.closest('article')?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    const card = link.closest('article');
+    if (card) scrollIntoViewGently(card, 'center');
     const done = window.setTimeout(() => onHighlightDone?.(), 1800);
     return () => {
       window.clearTimeout(done);
@@ -42,11 +47,14 @@ export function BlogCard({ blog, highlight, onHighlightDone }: BlogCardProps) {
   return (
     <article
       aria-labelledby={`blog-${blog.id}-title`}
+      style={enterDelay !== undefined ? { animationDelay: `${enterDelay}ms` } : undefined}
       className={cn(
-        'group relative border border-border bg-surface p-5 transition-colors sm:p-6',
-        'hover:border-border-strong active:bg-bg',
-        'has-[a:focus-visible]:border-border-strong has-[a:focus-visible]:outline-2 has-[a:focus-visible]:outline-offset-2 has-[a:focus-visible]:outline-focus',
-        highlight && 'motion-safe:animate-arrive',
+        'group relative cursor-pointer border border-border bg-surface p-5 transition-[border-color,translate] duration-(--duration-base) sm:p-7',
+        'hover:border-accent-soft active:translate-y-0 active:bg-bg motion-safe:hover:-translate-y-0.5',
+        'has-[a:focus-visible]:border-accent-soft has-[a:focus-visible]:outline-2 has-[a:focus-visible]:outline-offset-2 has-[a:focus-visible]:outline-focus',
+        highlight
+          ? 'motion-safe:animate-arrive'
+          : enterDelay !== undefined && 'motion-safe:animate-fade-up',
       )}
     >
       {/* Blue→pink rule that draws in on hover/focus: the brand's bridge motif. */}
@@ -59,7 +67,7 @@ export function BlogCard({ blog, highlight, onHighlightDone }: BlogCardProps) {
 
       <h2
         id={`blog-${blog.id}-title`}
-        className="mt-4 line-clamp-3 font-display text-title wrap-break-word"
+        className="mt-5 line-clamp-3 font-display text-title wrap-break-word text-text"
       >
         <Link
           ref={linkRef}
@@ -70,22 +78,31 @@ export function BlogCard({ blog, highlight, onHighlightDone }: BlogCardProps) {
         </Link>
       </h2>
 
-      <p className="mt-2 line-clamp-2 wrap-break-word text-text-muted sm:line-clamp-3">
+      <p className="mt-2.5 line-clamp-2 leading-relaxed wrap-break-word text-text-muted sm:line-clamp-3">
         {previewOf(blog.excerpt)}
       </p>
 
-      <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-text-muted">
-        {blog.categories.map((category) => (
-          <CategoryChip key={category.id} category={category} />
-        ))}
-        <span className="inline-flex items-center gap-1.5">
-          <ClockIcon />
-          {blog.readTimeMinutes} min read
-        </span>
-        <span className="inline-flex items-center gap-1.5">
-          <CommentIcon />
-          {plural(blog.commentCount, 'comment', 'comments')}
-        </span>
+      <div className="mt-5 flex flex-wrap items-center justify-between gap-x-6 gap-y-3 border-t border-border pt-4">
+        {blog.categories.length > 0 && (
+          <ul aria-label="Categories" className="flex min-w-0 flex-wrap gap-2">
+            {blog.categories.map((category) => (
+              <li key={category.id} className="max-w-full min-w-0">
+                <CategoryChip category={category} />
+              </li>
+            ))}
+          </ul>
+        )}
+        <p className="ml-auto flex shrink-0 items-center gap-4 text-xs text-text-muted">
+          <span className="inline-flex items-center gap-1.5">
+            <ClockIcon />
+            {blog.readTimeMinutes} min read
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <CommentIcon />
+            {plural(blog.commentCount, 'comment', 'comments')}
+          </span>
+          <ArrowRightIcon className="hidden text-accent transition-transform duration-(--duration-base) group-hover:translate-x-1 sm:block" />
+        </p>
       </div>
     </article>
   );
@@ -93,20 +110,21 @@ export function BlogCard({ blog, highlight, onHighlightDone }: BlogCardProps) {
 
 export function BlogCardSkeleton() {
   return (
-    <div aria-hidden="true" className="border border-border bg-surface p-5 sm:p-6">
+    <div aria-hidden="true" className="border border-border bg-surface p-5 sm:p-7">
       <div className="flex items-center gap-3">
-        <span className="size-9 shrink-0 animate-shimmer rounded-full bg-border/70" />
+        <Skeleton className="size-9 shrink-0 rounded-full" />
         <div className="flex-1">
-          <span className="block h-3 w-40 max-w-full animate-shimmer bg-border/70" />
-          <span className="mt-2 block h-2.5 w-28 animate-shimmer bg-border/70" />
+          <Skeleton className="h-3 w-40 max-w-full" />
+          <Skeleton className="mt-2 h-2.5 w-28" />
         </div>
       </div>
-      <span className="mt-5 block h-5 w-4/5 animate-shimmer bg-border/70" />
-      <span className="mt-3 block h-3 w-full animate-shimmer bg-border/70" />
-      <span className="mt-2 block h-3 w-3/5 animate-shimmer bg-border/70" />
-      <div className="mt-5 flex gap-4">
-        <span className="block h-4 w-20 animate-shimmer bg-border/70" />
-        <span className="block h-4 w-16 animate-shimmer bg-border/70" />
+      <Skeleton className="mt-6 h-5 w-4/5" />
+      <Skeleton className="mt-2 h-5 w-1/2" />
+      <Skeleton className="mt-4 h-3 w-full" />
+      <Skeleton className="mt-2 h-3 w-3/5" />
+      <div className="mt-5 flex justify-between gap-4 border-t border-border pt-4">
+        <Skeleton className="h-6 w-24" />
+        <Skeleton className="h-4 w-32" />
       </div>
     </div>
   );
