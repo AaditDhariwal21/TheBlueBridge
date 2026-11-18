@@ -6,7 +6,7 @@ import { Skeleton } from '../../../../components/ui/Skeleton';
 import { cn } from '../../../../lib/cn';
 import { scrollIntoViewGently } from '../../../../lib/motion';
 import { blogPath } from '../../lib/paths';
-import { keepDashWithNext, plural } from '../../lib/text';
+import { keepDashTogether, plural } from '../../lib/text';
 import type { Blog } from '../../model/types';
 import { BlogThumb } from '../shared/BlogThumb';
 import { CategoryChip } from '../shared/CategoryChip';
@@ -84,10 +84,10 @@ export function BlogCard({ blog, highlight, onHighlightDone, enterDelay }: BlogC
           {blog.author.name}
         </span>
         {blog.author.profession && (
-          <>
+          <span className="hidden min-w-0 items-center gap-2 sm:flex">
             <span aria-hidden="true">·</span>
-            <span className="min-w-0 truncate">{blog.author.profession}</span>
-          </>
+            <span className="truncate">{blog.author.profession}</span>
+          </span>
         )}
         <span aria-hidden="true">·</span>
         <RelativeTime iso={blog.createdAt} className="shrink-0" />
@@ -102,7 +102,7 @@ export function BlogCard({ blog, highlight, onHighlightDone, enterDelay }: BlogC
           to={blogPath(blog.id)}
           className="outline-none after:absolute after:inset-0"
         >
-          {keepDashWithNext(blog.title)}
+          {keepDashTogether(blog.title)}
         </Link>
       </h2>
 

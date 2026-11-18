@@ -12,8 +12,8 @@ interface BlogsLayoutProps {
   /** Above the centre column only (the page heading, a back link); the side columns start below it. */
   header?: ReactNode;
   children: ReactNode;
-  /** Highlights this Query Blog in the side panel. */
-  activeQueryBlogId?: string;
+  /** The feed: the Query Blogs panel on the right (and "How Blogs Work" under it below `xl`). */
+  showQueryBlogs?: boolean;
 }
 
 /** Sticky 88px from the top (the header plus 20px); scrolls, with a thin bar, only if it must. */
@@ -22,18 +22,18 @@ const SIDE =
 
 /**
  * The Blogs section's frame, on every Blogs page.
- * - From `xl` (1280px): three columns in a container wider than the navbar's (up to 1488px).
- *   "How Blogs Work" on the left, the page in the centre (up to 760px), "Query Blogs"
- *   on the right, 28px apart. The side columns are always equal, so the centre stays centred;
- *   they narrow towards 1280px so the centre keeps at least about 610px.
- * - `lg` to `xl`: inside the navbar's edges, the page beside a 280px right column (the centre
- *   stays under about 680px), "How Blogs Work" under the Query Blogs.
- * - Below `lg`: the page only; the feed page offers the Query Blogs as a tab.
- * The `header` takes the first grid row above the centre column, so the side columns begin
- * level with the first thing under it (the search row), however the header wraps. Each panel
- * is rendered once, where it shows.
+ * - The feed (`showQueryBlogs`): from `xl` (1280px), three columns in a container wider than
+ *   the navbar's (up to 1488px): "How Blogs Work" on the left, the feed in the centre (up to
+ *   760px), "Query Blogs" on the right, 28px apart. The side columns are always equal, so the
+ *   centre stays centred. `lg` to `xl`: inside the navbar's edges, the feed beside a 280px
+ *   column with "How Blogs Work" under the Query Blogs. Below `lg`: the feed only (phones get
+ *   the Query Blogs as a tab).
+ * - A blog or Query Blog: from `xl`, "How Blogs Work" on the left and the page filling the
+ *   rest; below `xl`, the page only.
+ * The `header` takes the first grid row above the page, so the side columns begin level with
+ * the first thing under it, however the header wraps. Each panel is rendered once.
  */
-export function BlogsLayout({ header, children, activeQueryBlogId }: BlogsLayoutProps) {
+export function BlogsLayout({ header, children, showQueryBlogs = false }: BlogsLayoutProps) {
   const isDesktop = useMediaQuery(MEDIA.lg);
   const isWide = useMediaQuery(MEDIA.xl);
   // Warm the other Blogs pages' chunks, so following a card never shows a blank fallback.
@@ -43,13 +43,16 @@ export function BlogsLayout({ header, children, activeQueryBlogId }: BlogsLayout
     preloadRoute(queryBlogPath('preload'));
   }, []);
 
+  // Grid placement is ignored wherever the container isn't a grid.
   const centre = 'min-w-0 lg:col-start-1 xl:col-start-2';
   return (
     <Container
       className={cn(
-        'pt-4 pb-16 lg:grid lg:grid-cols-[minmax(0,1fr)_17.5rem] lg:gap-x-7 lg:pb-24',
-        // Sides: 282px at 1280, 312px from about 1420px; the centre up to 760px.
-        'xl:max-w-blogs xl:grid-cols-[clamp(17rem,22vw,19.5rem)_minmax(0,47.5rem)_clamp(17rem,22vw,19.5rem)] xl:justify-center',
+        'pt-4 pb-16 lg:pb-24 xl:max-w-blogs',
+        // Side columns from `xl`: 282px at 1280, 312px from about 1420px.
+        showQueryBlogs
+          ? 'lg:grid lg:grid-cols-[minmax(0,1fr)_17.5rem] lg:gap-x-7 xl:grid-cols-[clamp(17rem,22vw,19.5rem)_minmax(0,47.5rem)_clamp(17rem,22vw,19.5rem)] xl:justify-center'
+          : 'xl:grid xl:grid-cols-[clamp(17rem,22vw,19.5rem)_minmax(0,1fr)] xl:gap-x-7',
       )}
     >
       {header && <div className={cn(centre, 'lg:row-start-1')}>{header}</div>}
@@ -61,10 +64,10 @@ export function BlogsLayout({ header, children, activeQueryBlogId }: BlogsLayout
         </aside>
       )}
       <div className={cn(centre, 'lg:row-start-2')}>{children}</div>
-      {isDesktop && (
+      {showQueryBlogs && isDesktop && (
         <aside aria-label="Query Blogs" className="col-start-2 row-start-2 xl:col-start-3">
           <div className={SIDE}>
-            <QueryBlogPanel activeId={activeQueryBlogId} />
+            <QueryBlogPanel />
             {!isWide && <HowBlogsWork />}
           </div>
         </aside>

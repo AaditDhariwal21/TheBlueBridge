@@ -5,7 +5,6 @@ import { QueryBlogCard } from './QueryBlogCard';
 import { StartQueryBlog } from './StartQueryBlog';
 
 interface QueryBlogListProps {
-  activeId?: string | undefined;
   headingLevel?: 'h2' | 'h3';
 }
 
@@ -13,7 +12,7 @@ interface QueryBlogListProps {
  * The pinned Query Blogs as rows inside the "Query Blogs" panel, with loading, empty
  * and error states, and "Start a Query Blog" for admins while a category has none.
  */
-export function QueryBlogList({ activeId, headingLevel = 'h3' }: QueryBlogListProps) {
+export function QueryBlogList({ headingLevel = 'h3' }: QueryBlogListProps) {
   const { queryBlogs, status, retry } = useQueryBlogs();
   const Heading = headingLevel;
 
@@ -56,7 +55,7 @@ export function QueryBlogList({ activeId, headingLevel = 'h3' }: QueryBlogListPr
       <ul className="divide-y divide-border">
         {queryBlogs.map((q) => (
           <li key={q.id}>
-            <QueryBlogCard queryBlog={q} active={q.id === activeId} headingLevel={headingLevel} />
+            <QueryBlogCard queryBlog={q} headingLevel={headingLevel} />
           </li>
         ))}
       </ul>

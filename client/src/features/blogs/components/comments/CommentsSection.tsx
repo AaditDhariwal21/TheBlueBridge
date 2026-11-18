@@ -195,10 +195,8 @@ export function CommentsSection({ subject, copy, authorId, categoryIds }: Commen
   );
 
   const [one, many] = copy.entryNoun;
-  const total =
-    subject.kind === 'blog'
-      ? plural(comments.length, one, many)
-      : plural(tree.roots.length, one, many);
+  // Shown beside a blog's "Comments" heading only.
+  const total = plural(comments.length, one, many);
   const loading = status === 'loading';
 
   let body;
@@ -291,7 +289,8 @@ export function CommentsSection({ subject, copy, authorId, categoryIds }: Commen
           className="flex flex-wrap items-center gap-3 text-h3 sm:text-lead"
         >
           {copy.heading}
-          {!loading && (
+          {/* A Query Blog's count is already under its description. */}
+          {!loading && !isQueryBlog && (
             <span className="rounded-full border border-border px-2.5 py-0.5 font-sans text-sm text-text-muted">
               {total}
             </span>

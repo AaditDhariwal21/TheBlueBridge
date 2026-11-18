@@ -46,7 +46,7 @@ export function BlogPage() {
     <BlogsLayout
       header={
         <div className="flex flex-wrap items-center justify-between gap-x-4 pb-6 lg:pt-4">
-          <BackLink fallback={BLOGS_PATH} label="Back to all blogs" />
+          <BackLink fallback={BLOGS_PATH} label="Back to Blogs" />
           {blog && <RemoveBlog blog={blog} />}
         </div>
       }
@@ -56,8 +56,8 @@ export function BlogPage() {
           <>
             <ReadingProgress target={articleRef} />
             <BlogArticle ref={articleRef} blog={blog} />
-            {/* The conversation sits on its own surface, clearly apart from the article. */}
-            <div className="-mx-gutter mt-14 border-y border-border bg-surface px-gutter py-10 sm:mx-0 sm:border-x sm:px-8 sm:py-10">
+            {/* Same as a Query Blog: a rule, then the conversation on the page itself. */}
+            <div className="mt-12 border-t border-border pt-8">
               <CommentsSection
                 subject={{ kind: 'blog', blogId: blog.id }}
                 copy={BLOG_COMMENTS_COPY}

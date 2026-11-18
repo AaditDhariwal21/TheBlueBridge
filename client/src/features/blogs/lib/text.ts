@@ -30,9 +30,9 @@ export function plural(count: number, one: string, many: string): string {
 }
 
 /**
- * Binds a spaced dash to the word after it ("Query Blog - Tech" may break before the dash,
- * never after), so a title's line never ends on a dangling separator. Display only.
+ * Binds a spaced dash to the words either side ("Blog - Tech" wraps as one unit), so a title's
+ * line never ends on, or starts with, a dangling separator. Display only.
  */
-export function keepDashWithNext(title: string): string {
-  return title.replace(/ ([-–—]) /g, ' $1 ');
+export function keepDashTogether(title: string): string {
+  return title.replace(/ ([-–—]) /g, ' $1 ');
 }

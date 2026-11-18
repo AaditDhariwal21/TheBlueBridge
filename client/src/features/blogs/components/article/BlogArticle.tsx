@@ -3,7 +3,7 @@ import type { Ref } from 'react';
 import { Avatar } from '../../../../components/ui/Avatar';
 import { Skeleton } from '../../../../components/ui/Skeleton';
 import { formatDate, formatFull } from '../../lib/time';
-import { toParagraphs } from '../../lib/text';
+import { keepDashTogether, toParagraphs } from '../../lib/text';
 import type { Blog } from '../../model/types';
 import { CategoryChip } from '../shared/CategoryChip';
 import { ClockIcon } from '../shared/Icons';
@@ -11,9 +11,9 @@ import { ShareButton } from '../shared/ShareButton';
 import { RichText } from './RichText';
 
 /**
- * The full blog for reading: a large title (the page's h1), the author block (photo or
- * initials, name, occupation, date, reading time, categories) and the body in a column about
- * 65-70 characters wide, at 18px with generous line height.
+ * The full blog for reading: a large title (the page's h1) and the author block (photo or
+ * initials, name, occupation, date, reading time, "Copy link", categories) and the body at
+ * 18px with generous line height, all across the full width of the page column.
  */
 export function BlogArticle({ blog, ref }: { blog: Blog; ref?: Ref<HTMLElement> }) {
   return (
@@ -21,14 +21,14 @@ export function BlogArticle({ blog, ref }: { blog: Blog; ref?: Ref<HTMLElement> 
       <header>
         <h1
           id="page-title"
-          className="max-w-article text-h1 font-semibold tracking-tight wrap-break-word text-primary motion-safe:animate-rise"
+          className="text-h1 font-semibold tracking-tight text-pretty wrap-break-word text-primary motion-safe:animate-rise"
         >
-          {blog.title}
+          {keepDashTogether(blog.title)}
         </h1>
 
-        <div className="mt-7 flex max-w-article items-center gap-4">
+        <div className="mt-7 flex flex-wrap items-center gap-x-4 gap-y-3">
           <Avatar user={blog.author} size="xl" />
-          <div className="min-w-0 flex-1">
+          <div className="min-w-48 flex-1">
             <p className="truncate font-medium text-text">{blog.author.name}</p>
             <p className="truncate text-sm text-text-muted">{blog.author.profession}</p>
             <p className="mt-1 flex flex-wrap items-center gap-x-2 text-sm text-text-muted">
@@ -42,7 +42,7 @@ export function BlogArticle({ blog, ref }: { blog: Blog; ref?: Ref<HTMLElement> 
               </span>
             </p>
           </div>
-          <ShareButton blogId={blog.id} className="self-start sm:self-center" />
+          <ShareButton blogId={blog.id} />
         </div>
 
         {blog.categories.length > 0 && (
@@ -56,7 +56,7 @@ export function BlogArticle({ blog, ref }: { blog: Blog; ref?: Ref<HTMLElement> 
         )}
       </header>
 
-      <div className="mt-8 max-w-article border-t border-border pt-8 sm:mt-10 sm:pt-10">
+      <div className="mt-8 border-t border-border pt-8 sm:mt-10 sm:pt-10">
         {blog.content ? (
           <RichText doc={blog.content} className="text-reading" />
         ) : (
@@ -81,8 +81,8 @@ export function BlogArticleSkeleton() {
   return (
     <div aria-busy="true">
       <span className="sr-only">Loading blog…</span>
-      <Skeleton className="h-10 w-11/12 max-w-article" />
-      <Skeleton className="mt-3 h-10 w-2/3 max-w-article" />
+      <Skeleton className="h-10 w-11/12" />
+      <Skeleton className="mt-3 h-10 w-2/3" />
       <div className="mt-7 flex items-center gap-4">
         <Skeleton className="size-14 shrink-0 rounded-full" />
         <div className="flex-1">
@@ -91,10 +91,12 @@ export function BlogArticleSkeleton() {
           <Skeleton className="mt-2 h-3 w-40" />
         </div>
       </div>
-      <div className="mt-8 max-w-article space-y-3 border-t border-border pt-8 sm:mt-10 sm:pt-10">
-        {['w-full', 'w-full', 'w-11/12', 'w-full', 'w-3/4'].map((w, i) => (
-          <Skeleton key={i} className={`h-4 ${w}`} />
-        ))}
+      <div className="mt-8 border-t border-border pt-8 sm:mt-10 sm:pt-10">
+        <div className="space-y-3">
+          {['w-full', 'w-full', 'w-11/12', 'w-full', 'w-3/4'].map((w, i) => (
+            <Skeleton key={i} className={`h-4 ${w}`} />
+          ))}
+        </div>
       </div>
     </div>
   );

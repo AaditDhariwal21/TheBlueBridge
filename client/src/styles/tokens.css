@@ -169,8 +169,6 @@
   --container-page: 72rem;
   --container-reading: 42rem;
   --container-narrow: 34rem;
-  /* Article body: about 65-70 characters per line at 18px Inter. */
-  --container-article: 38rem;
   /* The Blogs pages' three columns from 1280px: 2 x 312px sides, 2 x 28px gaps, a 760px centre. */
   --container-blogs: 93rem;
   --container-hero: 110rem; /* the hero image's natural width (1758px) */

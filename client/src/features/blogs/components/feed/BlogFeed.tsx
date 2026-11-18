@@ -268,10 +268,10 @@ function FeedList({
       )}
 
       {!loading && !failed && !hasMore && blogs.length > 0 && (
-        <p className="mt-8 flex items-center justify-center gap-4 text-xs tracking-caps text-text-muted uppercase">
-          <span aria-hidden="true" className="h-px w-10 bg-border-strong/40" />
+        <p className="mt-8 flex items-center justify-center gap-3 text-xs tracking-caps whitespace-nowrap text-text-muted uppercase sm:gap-4">
+          <span aria-hidden="true" className="h-px w-6 bg-border-strong/40 sm:w-10" />
           You’re all caught up
-          <span aria-hidden="true" className="h-px w-10 bg-border-strong/40" />
+          <span aria-hidden="true" className="h-px w-6 bg-border-strong/40 sm:w-10" />
         </p>
       )}
 

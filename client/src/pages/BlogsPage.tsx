@@ -56,6 +56,7 @@ export function BlogsPage() {
 
   return (
     <BlogsLayout
+      showQueryBlogs
       header={
         // One slim line, so the first blog sits high on the screen. The side columns start
         // below it, level with the search row.

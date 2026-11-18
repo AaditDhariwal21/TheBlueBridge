@@ -159,8 +159,8 @@ On a filled (navy) chip the dot gets a paper ring so black stays visible.
 | `--tracking-caps` **[new]** | Inter             | 0.18em                        |                                                  | Small-caps eyebrows (echoes the image's spaced sub-line) |
 
 Reading measure: reference paragraphs cap at `64rem` (≈150 characters, too long).
-Blog articles use `--container-article: 38rem` (`max-w-article`), about 65-70 characters at
-`--text-reading` (1.125rem / 1.75 line height).
+Blog articles and Query Blogs fill the page column (the title, author block, body and comments
+share one width); the body is `--text-reading` (1.125rem / 1.75 line height).
 
 Justified prose (Home mission and pillars) uses the `text-justified` utility in `index.css`:
 `text-align: justify`, `text-justify: inter-word`, automatic hyphenation (`lang="en"`), plain
@@ -251,7 +251,8 @@ wrapping. Checked at 320, 360, 390, 768 and 1280 px.
 
 The Blogs pages follow the site's shape rule: every container, input and button is a square
 rectangle with a 1px `--color-border` hairline (cards, both side panels, the search box, the
-comments surface, secondary `subtle` buttons) and no shadow. Only category tags and filter
+comment box, secondary `subtle` buttons) and no shadow. Comments sit on the page itself, below
+a rule, on blogs and Query Blogs alike. Only category tags and filter
 chips (`rounded-full`), avatars and dots are round. Navy is the only strong colour: category
 tints appear only on chips, dots and thumbnails. Every display title is Playfair 600 in
 `--color-primary`, balanced: the page heading (32px), card titles (22px on desktop), side

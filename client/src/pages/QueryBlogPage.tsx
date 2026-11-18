@@ -10,13 +10,12 @@ import { QUERY_COPY } from '../features/blogs/components/comments/threadContext'
 import { BackLink } from '../features/blogs/components/shared/BackLink';
 import { BlogsLayout } from '../features/blogs/components/shared/BlogsLayout';
 import { PinIcon } from '../features/blogs/components/shared/Icons';
-import { RelativeTime } from '../features/blogs/components/shared/RelativeTime';
 import { Skeleton } from '../components/ui/Skeleton';
 import { CATEGORY_TEXT } from '../lib/categoryColor';
 import { cn } from '../lib/cn';
 import { StateMessage } from '../components/ui/StateMessage';
 import { blogsTabPath } from '../features/blogs/lib/paths';
-import { plural } from '../features/blogs/lib/text';
+import { keepDashTogether, plural } from '../features/blogs/lib/text';
 import { RemoveQueryBlogDialog } from '../features/admin/components/RemoveQueryBlogDialog';
 import { canDeleteQueryBlog } from '../features/auth/permissions';
 import type { QueryBlog } from '../features/blogs/model/types';
@@ -45,10 +44,9 @@ export function QueryBlogPage() {
 
   return (
     <BlogsLayout
-      activeQueryBlogId={queryBlogId}
       header={
         <div className="pb-6 lg:pt-4">
-          <BackLink fallback={backTo} label="Back to Query Blogs" />
+          <BackLink fallback={backTo} label="Back to Blogs" />
         </div>
       }
     >
@@ -65,19 +63,13 @@ export function QueryBlogPage() {
               </div>
               <h1
                 id="page-title"
-                className="mt-3 text-h1 font-semibold tracking-tight wrap-break-word motion-safe:animate-rise"
+                className="mt-3 text-h1 font-semibold tracking-tight text-pretty wrap-break-word motion-safe:animate-rise"
               >
-                {topic.title}
+                {keepDashTogether(topic.title)}
               </h1>
-              <p className="mt-3 max-w-reading text-lg text-text-muted">{topic.description}</p>
-              <p className="mt-4 flex flex-wrap items-center gap-x-2 text-sm text-text-muted">
-                <span className="font-medium text-text">
-                  {plural(topic.queryCount, 'query', 'queries')}
-                </span>
-                <span aria-hidden="true">·</span>
-                <span>
-                  last active <RelativeTime iso={topic.lastActivityAt} />
-                </span>
+              <p className="mt-3 text-lg text-text-muted">{topic.description}</p>
+              <p className="mt-4 text-sm font-medium text-text">
+                {plural(topic.queryCount, 'query', 'queries')}
               </p>
             </header>
             <div className="mt-8">
