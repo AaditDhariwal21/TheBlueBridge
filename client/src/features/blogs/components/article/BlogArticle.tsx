@@ -7,6 +7,7 @@ import { toParagraphs } from '../../lib/text';
 import type { Blog } from '../../model/types';
 import { CategoryChip } from '../shared/CategoryChip';
 import { ClockIcon } from '../shared/Icons';
+import { ShareButton } from '../shared/ShareButton';
 import { RichText } from './RichText';
 
 /**
@@ -20,12 +21,12 @@ export function BlogArticle({ blog, ref }: { blog: Blog; ref?: Ref<HTMLElement> 
       <header>
         <h1
           id="page-title"
-          className="max-w-article text-h1 tracking-tight wrap-break-word motion-safe:animate-rise"
+          className="max-w-article text-h1 font-semibold tracking-tight wrap-break-word text-primary motion-safe:animate-rise"
         >
           {blog.title}
         </h1>
 
-        <div className="mt-7 flex items-center gap-4">
+        <div className="mt-7 flex max-w-article items-center gap-4">
           <Avatar user={blog.author} size="xl" />
           <div className="min-w-0 flex-1">
             <p className="truncate font-medium text-text">{blog.author.name}</p>
@@ -41,13 +42,14 @@ export function BlogArticle({ blog, ref }: { blog: Blog; ref?: Ref<HTMLElement> 
               </span>
             </p>
           </div>
+          <ShareButton blogId={blog.id} className="self-start sm:self-center" />
         </div>
 
         {blog.categories.length > 0 && (
           <ul aria-label="Categories" className="mt-5 flex flex-wrap gap-2">
             {blog.categories.map((category) => (
               <li key={category.id} className="max-w-full min-w-0">
-                <CategoryChip category={category} className="bg-surface" />
+                <CategoryChip category={category} />
               </li>
             ))}
           </ul>

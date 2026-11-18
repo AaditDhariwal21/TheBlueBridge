@@ -1,12 +1,11 @@
 import { Link } from 'react-router';
 
 import { CategoryDot } from '../../../../components/ui/CategoryDot';
-import { CATEGORY_BG } from '../../../../lib/categoryColor';
 import { cn } from '../../../../lib/cn';
 import { queryBlogPath } from '../../lib/paths';
-import { plural } from '../../lib/text';
+import { keepDashWithNext, plural } from '../../lib/text';
 import type { QueryBlog } from '../../model/types';
-import { ArrowRightIcon, CommentIcon } from '../shared/Icons';
+import { CommentIcon } from '../shared/Icons';
 import { RelativeTime } from '../shared/RelativeTime';
 
 interface QueryBlogCardProps {
@@ -16,9 +15,9 @@ interface QueryBlogCardProps {
 }
 
 /**
- * A pinned topic. The whole card is clickable through a stretched link on the
- * title, so the link's accessible name stays short ("Finance"). The one being
- * read is marked: a navy border and its category's rule.
+ * A pinned topic, as a row in the "Query Blogs" panel. The whole row is clickable
+ * through a stretched link on the title, so the link's accessible name stays short. The one
+ * being read is shaded, ruled in navy and marked "Viewing".
  */
 export function QueryBlogCard({
   queryBlog,
@@ -29,47 +28,45 @@ export function QueryBlogCard({
   return (
     <article
       className={cn(
-        'group relative cursor-pointer border bg-surface p-4 transition-colors duration-(--duration-base)',
-        'hover:border-accent-soft active:bg-bg',
-        'has-[a:focus-visible]:outline-2 has-[a:focus-visible]:outline-offset-2 has-[a:focus-visible]:outline-focus',
-        active ? 'border-primary' : 'border-border',
+        'group relative px-6 py-4 transition-colors',
+        'hover:bg-bg active:bg-border/40',
+        'has-[a:focus-visible]:outline-2 has-[a:focus-visible]:-outline-offset-2 has-[a:focus-visible]:outline-focus',
+        active && 'bg-bg',
       )}
     >
       <span
         aria-hidden="true"
         className={cn(
-          'absolute inset-y-0 -left-px w-0.5 origin-top transition-transform duration-(--duration-base)',
-          CATEGORY_BG[color],
+          'absolute inset-y-0 left-0 w-0.5 origin-top bg-primary transition-transform duration-(--duration-base)',
           active ? 'scale-y-100' : 'scale-y-0 group-hover:scale-y-100',
         )}
       />
-      <p className="flex min-w-0 items-center gap-2 text-xs text-text-muted">
+      <p className="flex min-w-0 items-center gap-2 text-meta text-text-muted">
         <CategoryDot color={color} />
         <span className="truncate">{queryBlog.category.name}</span>
-        {active && <span className="ml-auto shrink-0 text-xs font-medium text-text">Viewing</span>}
+        {active && (
+          <span className="ml-auto shrink-0 rounded-full bg-primary px-2 py-0.5 text-xs font-medium text-on-primary">
+            Viewing
+          </span>
+        )}
       </p>
-      <div className="mt-1.5 flex items-start justify-between gap-3">
-        <Heading className="min-w-0 font-display text-lg leading-snug wrap-break-word">
-          <Link
-            to={queryBlogPath(queryBlog.id)}
-            aria-current={active ? 'page' : undefined}
-            className="decoration-accent-soft underline-offset-4 outline-none group-hover:underline after:absolute after:inset-0"
-          >
-            {queryBlog.title}
-          </Link>
-        </Heading>
-        <ArrowRightIcon className="mt-1 text-text-muted transition-transform group-hover:translate-x-0.5 group-hover:text-accent" />
-      </div>
-      <p className="mt-1 line-clamp-2 text-sm text-text-muted">{queryBlog.description}</p>
-      <p className="mt-3 flex flex-wrap items-center gap-x-2 text-xs text-text-muted">
-        <span className="inline-flex items-center gap-1.5 font-medium text-text">
-          <CommentIcon />
+      <Heading className="mt-2 font-display text-lg leading-snug font-semibold text-balance wrap-break-word text-primary">
+        <Link
+          to={queryBlogPath(queryBlog.id)}
+          aria-current={active ? 'page' : undefined}
+          className="outline-none after:absolute after:inset-0"
+        >
+          {keepDashWithNext(queryBlog.title)}
+        </Link>
+      </Heading>
+      <p className="mt-1 line-clamp-2 text-sm text-text-secondary">{queryBlog.description}</p>
+      {/* Plain prose, so it wraps cleanly in the narrow side column. */}
+      <p className="mt-3 text-meta text-text-muted">
+        <CommentIcon className="mr-1.5 inline-block -translate-y-px" />
+        <span className="font-medium text-text">
           {plural(queryBlog.queryCount, 'query', 'queries')}
         </span>
-        <span aria-hidden="true">·</span>
-        <span>
-          active <RelativeTime iso={queryBlog.lastActivityAt} />
-        </span>
+        , active <RelativeTime iso={queryBlog.lastActivityAt} />
       </p>
     </article>
   );

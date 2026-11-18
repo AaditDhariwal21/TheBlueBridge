@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 
 import { Button } from '../../../../components/ui/Button';
 import { StateMessage } from '../../../../components/ui/StateMessage';
@@ -10,13 +10,13 @@ import { FEED_SEARCH_RULES } from '../../model/validation';
 import { useFeed, useFeedSearch } from '../../state/hooks';
 import { PenIcon, SearchIcon } from '../shared/Icons';
 import { BlogCard, BlogCardSkeleton } from './BlogCard';
-import { FeedSearchBar } from './FeedSearchBar';
+import { CategoryChips } from './CategoryChips';
 
 /** Start fetching the next page well before the user reaches the end. */
 const PREFETCH_MARGIN = '0px 0px 600px 0px';
 
-/** First render: the first few cards fade up one after another. */
-const STAGGER_MS = 70;
+/** First visit: the first few cards fade up one after another. */
+const STAGGER_MS = 55;
 const STAGGER_COUNT = 6;
 /** Once per visit: coming back to the feed shows it at once, where the reader left it. */
 let feedHasEntered = false;
@@ -24,19 +24,24 @@ let feedHasEntered = false;
 const normalise = (text: string) => text.replace(/\s+/g, ' ').trim();
 
 interface BlogFeedProps {
+  /** Beside the search box (from `lg`): the "Write a blog" button. */
+  writeAction?: ReactNode;
   /** Offered in the empty state, e.g. a "Write a blog" button. */
   emptyAction?: ReactNode;
 }
 
 /**
- * The Feed with search and a category filter above it. Without either it is the
- * newest-first feed; with them, results for that search. Both are cached and refreshed in
- * place (lib/queryCache.ts). Searching waits for a pause in typing and
- * at least two characters. The search lives in this component's state, not the URL.
+ * The Feed: a search box and the category chips above the cards. Without a search
+ * or a category it is the newest-first feed; with them, results for that search (any of the
+ * chosen categories). Both are cached and refreshed in place (lib/queryCache.ts). Searching
+ * waits for a pause in typing and at least two characters. All of it lives in this
+ * component's state, not the URL.
  */
-export function BlogFeed({ emptyAction }: BlogFeedProps) {
+export function BlogFeed({ writeAction, emptyAction }: BlogFeedProps) {
   const [query, setQuery] = useState('');
   const [categoryIds, setCategoryIds] = useState<string[]>([]);
+  const inputId = useId();
+  const hintId = useId();
   const typed = normalise(query);
   const settled = useDebouncedValue(typed, FEED_SEARCH_RULES.debounceMs);
   // Clearing the box shows the Feed at once; new words wait for the pause.
@@ -50,13 +55,38 @@ export function BlogFeed({ emptyAction }: BlogFeedProps) {
 
   return (
     <div>
-      <FeedSearchBar
-        query={query}
-        onQueryChange={setQuery}
-        categoryIds={categoryIds}
-        onCategoriesChange={setCategoryIds}
-      />
-      <div className="mt-6">
+      <div className="flex items-center gap-3">
+        <div role="search" aria-label="Blogs" className="relative min-w-0 flex-1">
+          <label htmlFor={inputId} className="sr-only">
+            Search blogs
+          </label>
+          <SearchIcon className="pointer-events-none absolute top-1/2 left-4 size-5 -translate-y-1/2 text-text-muted" />
+          <input
+            id={inputId}
+            type="search"
+            value={query}
+            onChange={(event) => {
+              setQuery(event.target.value);
+            }}
+            placeholder="Search blogs"
+            aria-describedby={hintId}
+            maxLength={FEED_SEARCH_RULES.queryMax}
+            autoComplete="off"
+            enterKeyHint="search"
+            className="h-12 w-full border border-border bg-surface pr-4 pl-12 text-base text-text transition-colors placeholder:text-text-muted hover:border-border-strong focus:border-text"
+          />
+          <span id={hintId} className="sr-only">
+            Results update as you type, from {FEED_SEARCH_RULES.queryMin} characters.
+          </span>
+        </div>
+        {writeAction}
+      </div>
+
+      <div className="mt-3">
+        <CategoryChips value={categoryIds} onChange={setCategoryIds} />
+      </div>
+
+      <div className="mt-4">
         {q || categoryIds.length > 0 ? (
           <SearchResults q={q} categoryIds={categoryIds} onClear={clear} />
         ) : (
@@ -67,7 +97,7 @@ export function BlogFeed({ emptyAction }: BlogFeedProps) {
   );
 }
 
-function LatestBlogs({ emptyAction }: BlogFeedProps) {
+function LatestBlogs({ emptyAction }: Pick<BlogFeedProps, 'emptyAction'>) {
   const feed = useFeed();
   return (
     <FeedList
@@ -85,6 +115,7 @@ function LatestBlogs({ emptyAction }: BlogFeedProps) {
           title="No blogs yet"
           icon={<PenIcon className="size-5" />}
           action={emptyAction}
+          className="bg-surface"
         >
           Be the first to share a story, a lesson or a piece of advice with the community.
         </StateMessage>
@@ -117,8 +148,9 @@ function SearchResults({
           role="status"
           title="No blogs match"
           icon={<SearchIcon className="size-5" />}
+          className="bg-surface"
           action={
-            <Button variant="outline" onClick={onClear}>
+            <Button variant="subtle" onClick={onClear}>
               Clear filters
             </Button>
           }
@@ -144,9 +176,9 @@ interface FeedListProps {
 }
 
 /**
- * Feed cards with infinite scroll: an IntersectionObserver on a sentinel below the list
- * loads the next page, with skeletons while it loads. When new results replace old ones
- * (a new search), the old cards stay, dimmed, until they arrive, so nothing jumps.
+ * Separate cards with infinite scroll: an IntersectionObserver on a sentinel below the
+ * list loads the next page, with skeleton cards while it loads. When new results replace old
+ * ones (a new search), the old cards stay, dimmed, until they arrive, so nothing jumps.
  */
 function FeedList({
   label,
@@ -167,6 +199,7 @@ function FeedList({
   }, [blogs.length]);
   const canAutoLoad = hasMore && !loading && !failed;
   const replacing = loading && !hasMore && blogs.length > 0;
+  const skeletons = loading && !replacing ? (blogs.length === 0 ? 3 : 1) : 0;
 
   // Re-observe after every page: if the sentinel is still on screen (a short
   // page, or a tall viewport), the fresh observer fires again immediately.
@@ -193,7 +226,7 @@ function FeedList({
         aria-busy={loading}
         aria-label={label}
         className={cn(
-          'flex flex-col gap-4 transition-opacity',
+          'flex flex-col gap-5 transition-opacity',
           replacing && 'opacity-60 motion-reduce:opacity-100',
         )}
       >
@@ -209,15 +242,11 @@ function FeedList({
         ))}
       </ul>
 
-      {loading && !replacing && (
-        <div className={cn('flex flex-col gap-4', blogs.length > 0 && 'mt-4')}>
-          <BlogCardSkeleton />
-          {blogs.length === 0 && (
-            <>
-              <BlogCardSkeleton />
-              <BlogCardSkeleton />
-            </>
-          )}
+      {skeletons > 0 && (
+        <div className={cn('flex flex-col gap-5', blogs.length > 0 && 'mt-5')}>
+          {Array.from({ length: skeletons }, (_, i) => (
+            <BlogCardSkeleton key={i} />
+          ))}
         </div>
       )}
 
@@ -227,9 +256,9 @@ function FeedList({
         <StateMessage
           role="alert"
           title={blogs.length > 0 ? 'Couldn’t load more blogs' : 'Couldn’t load blogs'}
-          className="mt-4"
+          className="mt-5 bg-surface"
           action={
-            <Button variant="outline" onClick={retry}>
+            <Button variant="subtle" onClick={retry}>
               Try again
             </Button>
           }
@@ -239,10 +268,10 @@ function FeedList({
       )}
 
       {!loading && !failed && !hasMore && blogs.length > 0 && (
-        <p className="mt-10 flex items-center justify-center gap-4 text-xs tracking-caps text-text-muted uppercase">
-          <span aria-hidden="true" className="h-px w-10 bg-accent-soft" />
+        <p className="mt-8 flex items-center justify-center gap-4 text-xs tracking-caps text-text-muted uppercase">
+          <span aria-hidden="true" className="h-px w-10 bg-border-strong/40" />
           You’re all caught up
-          <span aria-hidden="true" className="h-px w-10 bg-accent-2-soft" />
+          <span aria-hidden="true" className="h-px w-10 bg-border-strong/40" />
         </p>
       )}
 

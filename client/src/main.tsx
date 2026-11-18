@@ -1,5 +1,6 @@
 import '@fontsource/playfair-display/400.css';
 import '@fontsource/playfair-display/400-italic.css';
+import '@fontsource/playfair-display/600.css';
 import '@fontsource-variable/inter/wght.css';
 import './styles/index.css';
 

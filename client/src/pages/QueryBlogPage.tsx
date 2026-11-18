@@ -44,10 +44,15 @@ export function QueryBlogPage() {
   );
 
   return (
-    <BlogsLayout activeQueryBlogId={queryBlogId}>
-      <BackLink fallback={backTo} label="Back to Query Blogs" className="lg:mt-4" />
-
-      <div className="mt-6">
+    <BlogsLayout
+      activeQueryBlogId={queryBlogId}
+      header={
+        <div className="pb-6 lg:pt-4">
+          <BackLink fallback={backTo} label="Back to Query Blogs" />
+        </div>
+      }
+    >
+      <div>
         {topic ? (
           <>
             <header className="border-b border-border pb-8">
@@ -60,7 +65,7 @@ export function QueryBlogPage() {
               </div>
               <h1
                 id="page-title"
-                className="mt-3 text-h1 tracking-tight wrap-break-word motion-safe:animate-rise"
+                className="mt-3 text-h1 font-semibold tracking-tight wrap-break-word motion-safe:animate-rise"
               >
                 {topic.title}
               </h1>
@@ -102,7 +107,7 @@ export function QueryBlogPage() {
             headingLevel="h1"
             title="This Query Blog didn’t load"
             action={
-              <Button variant="outline" onClick={retry}>
+              <Button variant="subtle" onClick={retry}>
                 Try again
               </Button>
             }

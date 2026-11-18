@@ -43,13 +43,15 @@ export function BlogPage() {
   );
 
   return (
-    <BlogsLayout>
-      <div className="flex flex-wrap items-center justify-between gap-x-4 lg:mt-4">
-        <BackLink fallback={BLOGS_PATH} label="Back to all blogs" />
-        {blog && <RemoveBlog blog={blog} />}
-      </div>
-
-      <div className="mt-6">
+    <BlogsLayout
+      header={
+        <div className="flex flex-wrap items-center justify-between gap-x-4 pb-6 lg:pt-4">
+          <BackLink fallback={BLOGS_PATH} label="Back to all blogs" />
+          {blog && <RemoveBlog blog={blog} />}
+        </div>
+      }
+    >
+      <div>
         {blog ? (
           <>
             <ReadingProgress target={articleRef} />
@@ -82,7 +84,7 @@ export function BlogPage() {
             headingLevel="h1"
             title="This blog didn’t load"
             action={
-              <Button variant="outline" onClick={retry}>
+              <Button variant="subtle" onClick={retry}>
                 Try again
               </Button>
             }

@@ -12,5 +12,8 @@ export const queryBlogPath = (id: string) => `${BLOGS_PATH}/query/${encodeURICom
 export const blogsTabPath = (tab: BlogsTab) =>
   tab === 'feed' ? BLOGS_PATH : `${BLOGS_PATH}?tab=${tab}`;
 
+/** The comments section's id on a blog's page: the target of a feed row's comment pill. */
+export const CONVERSATION_ID = 'conversation';
+
 /** Query param for the focused "continue thread" view on a blog or topic page. */
 export const THREAD_PARAM = 'thread';

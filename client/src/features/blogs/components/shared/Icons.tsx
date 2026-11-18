@@ -102,3 +102,18 @@ export const SearchIcon = ({ className }: IconProps) => (
     <path d="m20 20-4.5-4.5" />
   </Icon>
 );
+
+export const LinkIcon = ({ className }: IconProps) => (
+  <Icon className={className}>
+    <path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1" />
+    <path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1" />
+  </Icon>
+);
+
+/** An answered question: a speech bubble with a tick (ambassadors answering). */
+export const AnswerIcon = ({ className }: IconProps) => (
+  <Icon className={className}>
+    <path d="M20 12.5c0 3.6-3.6 6.5-8 6.5-1.1 0-2.2-.2-3.1-.5L4 20l1.4-3.6C4.5 15.3 4 14 4 12.5 4 8.9 7.6 6 12 6s8 2.9 8 6.5Z" />
+    <path d="m9 12.5 2 2 4-4" />
+  </Icon>
+);

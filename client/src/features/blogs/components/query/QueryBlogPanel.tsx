@@ -1,21 +1,19 @@
-import { PinIcon } from '../shared/Icons';
+import { PANEL, PANEL_TITLE } from '../shared/surface';
 import { QueryBlogList } from './QueryBlogList';
 
-/** Desktop side panel: "Ask the ambassadors", a one-line explainer and the pinned Query Blogs. */
+/**
+ * "Query Blogs": the pinned Query Blogs, in the right column or the phone tab. How they work is
+ * explained in `HowBlogsWork`, so the panel is just its heading and the list.
+ */
 export function QueryBlogPanel({ activeId }: { activeId?: string | undefined }) {
   return (
-    <div>
-      <p className="flex items-center gap-2 text-xs tracking-caps text-text-muted uppercase">
-        <PinIcon className="size-3.5 text-accent-2" />
-        Pinned · Query Blogs
-      </p>
-      <h2 id="query-panel-title" className="mt-2 text-h3">
-        Ask the ambassadors
-      </h2>
-      <p className="mt-1 mb-5 text-sm text-text-muted">
-        One Query Blog per category. Any member can ask; its ambassadors answer.
-      </p>
+    <section aria-labelledby="query-panel-title" className={PANEL}>
+      <div className="p-6 pb-4">
+        <h2 id="query-panel-title" className={PANEL_TITLE}>
+          Query Blogs
+        </h2>
+      </div>
       <QueryBlogList activeId={activeId} />
-    </div>
+    </section>
   );
 }

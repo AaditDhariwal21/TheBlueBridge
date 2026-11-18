@@ -15,7 +15,7 @@ which must stay in sync with this file. Items marked **[new]** are not in the re
 
 - **Feel:** quiet, editorial, high-trust. Deep navy "night sky" bands alternate with warm
   paper-coloured bands. A classical serif for display, a neutral sans for body text.
-  Square corners and no shadows anywhere.
+  Square corners and no shadows; only tags, chips, avatars and dots are round.
 - **Signature asset:** `hero-bridge.jpg`. Two women (one blue, one pink) join hands at
   the centre of a suspension bridge under a constellation network, with the
   "THE BLUE BRIDGE / CONNECTION • COMMUNITY • CONFLUENCE" lockup **baked into the image**.
@@ -93,8 +93,11 @@ dark mode a single extra scope (`[data-theme="dark"]`).
 | Warning                  | `--color-warning`       | `#8a5300` **[new]** | `#ffd58a` **[new]**             |
 
 **Category colours [new].** Each category has a `color` in the database (`public.category_color`:
-`pink`, `green`, `blue`, `orange`, `black`). The client maps it to one token, rendered only as a
-dot beside the category's name (`components/ui/CategoryDot.tsx`). Same in every tone.
+`pink`, `green`, `blue`, `orange`, `black`). The client maps it to tokens in
+`lib/categoryColor.ts`: the dot beside the category's name (`components/ui/CategoryDot.tsx`), and
+in the Blogs area a light tint (`--color-category-*-tint`: chips, thumbnail backgrounds) and a
+dark ink (`--color-category-*-ink`: thumbnail line art). Text on a tint is always `--color-text`.
+Same in every tone.
 
 | Category         | `color`  | Token                     | Value               |
 | ---------------- | -------- | ------------------------- | ------------------- |
@@ -243,3 +246,18 @@ wrapping. Checked at 320, 360, 390, 768 and 1280 px.
 - **Type scale:** display, h1, h2, lead and tagline are fluid `clamp()` values whose rem term
   keeps them scaling with browser zoom. Their mobile and desktop ends match section 3.
 - **Pillar copy:** approved 2026-11-03, as proposed.
+
+## 9. Blogs area **[new, 2026-11-18]**
+
+The Blogs pages follow the site's shape rule: every container, input and button is a square
+rectangle with a 1px `--color-border` hairline (cards, both side panels, the search box, the
+comments surface, secondary `subtle` buttons) and no shadow. Only category tags and filter
+chips (`rounded-full`), avatars and dots are round. Navy is the only strong colour: category
+tints appear only on chips, dots and thumbnails. Every display title is Playfair 600 in
+`--color-primary`, balanced: the page heading (32px), card titles (22px on desktop), side
+panel headings (22px), Query Blog titles (18px).
+
+Extra tokens: `--container-blogs` (93rem: the three columns from 1280px, wider than the
+navbar's `--container-page`); `--color-text-secondary` (`slate-700 #454d61`, 8.4:1 on white, feed excerpts);
+`--text-page-title` (2rem), `--text-row-title` (20 to 22px / 1.25), `--text-panel-title`
+(22px / 1.3), `--text-meta` (13px), `--text-excerpt` (15px / 1.55); `--animate-row-in`.

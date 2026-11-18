@@ -24,7 +24,8 @@ simplest correct option; no speculative features, no dead code.
 
 - Colours, fonts and sizes come only from `src/styles/tokens.css` (documented in
   `docs/design-tokens.md`). ESLint rejects arbitrary hex/px Tailwind values.
-- Square corners, no drop shadows, Playfair for display, Inter for text.
+- Square corners, no drop shadows, Playfair for display, Inter for text. Only tags and chips
+  (category pills, filter chips), avatars and dots are round (`docs/design-tokens.md` section 9).
 - Routes live in `src/app/routes.ts` with per-page meta; secondary pages are lazy. Pages in
   `src/pages/` stay thin and compose `components/` and `features/`.
 - Feature code lives in `src/features/<name>/`. Shared primitives live in `src/components/ui/`
@@ -44,8 +45,9 @@ simplest correct option; no speculative features, no dead code.
   to wrap it in `RequireAuth`. Show or hide controls with `features/auth/permissions.ts`, the
   client mirror of the server's policies (keep them in step). The API is what enforces them.
 - Categories are called "categories" everywhere (never "areas"). Each has a `color` from the
-  API, rendered only as `CategoryDot` beside its name. Colours map to tokens in
-  `lib/categoryColor.ts`; never hard-code a category's colour.
+  API, rendered as `CategoryDot` beside its name (and, in the Blogs area, as the tint and ink
+  of chips and thumbnails). Colours map to tokens in `lib/categoryColor.ts`; never hard-code a
+  category's colour.
 - Heavy, rarely used code (the editor, supabase-js) is loaded on demand with dynamic
   `import()`, so the first page stays small. Check the build output's `index-*.js` size.
 - 21st.dev components only when clearly better than building with the existing primitives;

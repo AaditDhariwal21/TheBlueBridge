@@ -1,10 +1,11 @@
 import { useState } from 'react';
 
 import { cn } from '../../lib/cn';
+import { hashString } from '../../lib/hash';
 
 /**
- * Soft brand tints for the initials fallback: the palette's blue and pink at two strengths, and
- * the warm hairline. Navy initials on each are 7:1 or better.
+ * Soft brand tints for the initials fallback (navy stays the only strong colour). Navy initials
+ * on each are 7:1 or better.
  */
 const TONES = [
   'bg-accent-soft/35 text-primary',
@@ -25,9 +26,7 @@ export type AvatarSize = keyof typeof SIZES;
 
 /** Deterministic: the same person always gets the same colour. */
 function toneFor(id: string): string {
-  let hash = 0;
-  for (const char of id) hash = (hash * 31 + char.charCodeAt(0)) | 0;
-  return TONES[Math.abs(hash) % TONES.length] ?? TONES[0];
+  return TONES[hashString(id) % TONES.length] ?? TONES[0];
 }
 
 interface AvatarProps {

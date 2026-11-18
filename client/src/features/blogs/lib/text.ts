@@ -28,3 +28,11 @@ export function initialsOf(name: string): string {
 export function plural(count: number, one: string, many: string): string {
   return `${count.toLocaleString('en-IN')} ${count === 1 ? one : many}`;
 }
+
+/**
+ * Binds a spaced dash to the word after it ("Query Blog - Tech" may break before the dash,
+ * never after), so a title's line never ends on a dangling separator. Display only.
+ */
+export function keepDashWithNext(title: string): string {
+  return title.replace(/ ([-–—]) /g, ' $1 ');
+}

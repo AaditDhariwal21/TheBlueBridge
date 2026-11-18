@@ -13,6 +13,10 @@ const VARIANTS = {
   danger:
     'border-danger bg-danger text-on-primary hover:border-danger-strong hover:bg-danger-strong ' +
     'focus-visible:outline-danger aria-disabled:hover:border-danger aria-disabled:hover:bg-danger',
+  /** Secondary, inside bordered surfaces (the Blogs area): the hairline border darkens on hover. */
+  subtle:
+    'border-border bg-surface text-primary hover:border-primary ' +
+    'aria-disabled:hover:border-border',
   /** Starts something destructive or negative (opens its confirmation): red, but quieter. */
   'danger-outline':
     'border-danger text-danger hover:bg-danger hover:text-on-primary focus-visible:outline-danger ' +

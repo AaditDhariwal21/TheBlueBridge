@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useSearchParams } from 'react-router';
+import { Link, useLocation, useSearchParams } from 'react-router';
 
 import { Button } from '../../../../components/ui/Button';
 import {
@@ -11,7 +11,7 @@ import {
 import { scrollIntoViewGently } from '../../../../lib/motion';
 import { MEDIA, useMediaQuery } from '../../../../lib/useMediaQuery';
 import { buildCommentTree } from '../../lib/commentTree';
-import { THREAD_PARAM } from '../../lib/paths';
+import { CONVERSATION_ID, THREAD_PARAM } from '../../lib/paths';
 import { plural } from '../../lib/text';
 import type { CommentSubject } from '../../model/types';
 import { useThread } from '../../state/hooks';
@@ -95,6 +95,19 @@ export function CommentsSection({ subject, copy, authorId, categoryIds }: Commen
     const entry = await post(null, body);
     markPosted(entry.id, copy.postedMessage);
   };
+
+  // Arriving from a feed row's comment pill (#conversation): bring the comments into view,
+  // after the page has settled at its top (RootLayout).
+  const { hash } = useLocation();
+  useEffect(() => {
+    if (hash !== `#${CONVERSATION_ID}`) return;
+    const frame = requestAnimationFrame(() => {
+      if (sectionRef.current) scrollIntoViewGently(sectionRef.current, 'start');
+    });
+    return () => {
+      cancelAnimationFrame(frame);
+    };
+  }, [hash]);
 
   // Move focus to what was just posted, so it is announced and in view.
   useEffect(() => {
@@ -196,7 +209,7 @@ export function CommentsSection({ subject, copy, authorId, categoryIds }: Commen
         headingLevel="h3"
         title="Couldn’t load the conversation"
         action={
-          <Button variant="outline" onClick={retry}>
+          <Button variant="subtle" onClick={retry}>
             Try again
           </Button>
         }
@@ -268,7 +281,7 @@ export function CommentsSection({ subject, copy, authorId, categoryIds }: Commen
     <ThreadUiContext value={ui}>
       <section
         ref={sectionRef}
-        id="conversation"
+        id={CONVERSATION_ID}
         aria-labelledby="conversation-title"
         aria-busy={loading}
         className="scroll-mt-24"
@@ -279,7 +292,7 @@ export function CommentsSection({ subject, copy, authorId, categoryIds }: Commen
         >
           {copy.heading}
           {!loading && (
-            <span className="border border-border px-2 py-0.5 font-sans text-sm text-text-muted">
+            <span className="rounded-full border border-border px-2.5 py-0.5 font-sans text-sm text-text-muted">
               {total}
             </span>
           )}

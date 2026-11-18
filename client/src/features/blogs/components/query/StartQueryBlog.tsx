@@ -34,7 +34,7 @@ export function StartQueryBlog() {
   return (
     <>
       <Button
-        variant="outline"
+        variant="subtle"
         onClick={() => {
           setOpen(true);
         }}

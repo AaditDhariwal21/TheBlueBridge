@@ -147,7 +147,7 @@ export function CommentComposer({
           </div>
           <div className="ml-auto flex gap-2">
             {onCancel && (
-              <Button variant="outline" onClick={onCancel} className="px-4">
+              <Button variant="subtle" onClick={onCancel} className="px-4">
                 Cancel
               </Button>
             )}

@@ -9,7 +9,7 @@ import { findRoute, NOT_FOUND } from './routes';
 const scrollByEntry = new Map<string, number>();
 
 export function RootLayout() {
-  const { pathname, hash, key } = useLocation();
+  const { pathname, key } = useLocation();
   const navigationType = useNavigationType();
   const mainRef = useRef<HTMLElement>(null);
   // Compare against the previous path rather than a "first render" flag:
@@ -49,9 +49,9 @@ export function RootLayout() {
     // where the reader left it. Focus moves to <main> so screen-reader and keyboard users
     // land on the new page's content. Not on initial load, so the skip link stays the
     // first Tab stop.
+    // A #hash target (e.g. a blog's comments) scrolls itself into view once it has rendered.
     if (previousPath.current === pathname) return;
     previousPath.current = pathname;
-    if (hash) return;
     const saved = navigationType === NavigationType.Pop ? scrollByEntry.get(key) : undefined;
     window.scrollTo({ top: saved ?? 0, behavior: 'instant' });
     mainRef.current?.focus({ preventScroll: true });
@@ -63,7 +63,7 @@ export function RootLayout() {
     return () => {
       cancelAnimationFrame(frame);
     };
-  }, [pathname, hash, key, navigationType]);
+  }, [pathname, key, navigationType]);
 
   return (
     <PageShell mainRef={mainRef}>

@@ -1,9 +1,10 @@
 import { useCallback, useSyncExternalStore } from 'react';
 
-/** Breakpoints matching Tailwind's `sm` and `lg` (see tokens.css / Tailwind defaults). */
+/** Breakpoints matching Tailwind's `sm`, `lg` and `xl` (see tokens.css / Tailwind defaults). */
 export const MEDIA = {
   sm: '(min-width: 40rem)',
   lg: '(min-width: 64rem)',
+  xl: '(min-width: 80rem)',
 } as const;
 
 /** Live `matchMedia` result. Correct on the first render (client-only app). */
